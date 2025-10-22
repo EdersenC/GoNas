@@ -19,21 +19,21 @@ var Offline Status = "offline"
 type Pool struct {
 	Name              string
 	Status            Status
-	Drives            []*BlockDevice
+	Drives            []*DriveInfo
 	Type              PoolType
 	TotalCapacity     uint64
 	AvailableCapacity uint64
 	Network           *network.Interface
 }
 
-func (p *Pool) AddDrive(drive ...*BlockDevice) {
+func (p *Pool) AddDrive(drive ...*DriveInfo) {
 	for i, _ := range drive {
 		p.Drives = append(p.Drives, drive[i])
 	}
 }
 
-func (p *Pool) RemoveDrive(drive *BlockDevice) {
-	var updatedDrives []*BlockDevice
+func (p *Pool) RemoveDrive(drive *DriveInfo) {
+	var updatedDrives []*DriveInfo
 	for _, d := range p.Drives {
 		if d.Name != drive.Name {
 			updatedDrives = append(updatedDrives, d)
@@ -44,7 +44,7 @@ func (p *Pool) RemoveDrive(drive *BlockDevice) {
 func (p *Pool) CalculateTotalCapacity() {
 	var total uint64
 	for _, d := range p.Drives {
-		total += d.Size
+		total += d.SizeBytes
 	}
 	p.TotalCapacity = total
 }
@@ -52,12 +52,12 @@ func (p *Pool) CalculateTotalCapacity() {
 func (p *Pool) CalculateAvailableCapacity() {
 	var available uint64
 	for _, d := range p.Drives {
-		available += d.FSAvail
+		available += d.FsAvail
 	}
 	p.AvailableCapacity = available
 }
 
-func NewPool(name string, poolType PoolType, network *network.Interface, drives ...*BlockDevice) *Pool {
+func NewPool(name string, poolType PoolType, network *network.Interface, drives ...*DriveInfo) *Pool {
 	pool := &Pool{
 		Name:    name,
 		Drives:  drives,

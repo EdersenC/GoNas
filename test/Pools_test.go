@@ -8,10 +8,10 @@ import (
 var gigabyte = uint64(1024 * 1024 * 1024)
 var megabyte = uint64(1024 * 1024)
 
-var drives = []*storage.BlockDevice{
-	{Name: "sda", Size: 500 * gigabyte, FSAvail: 400 * megabyte, Type: "HDD", Model: "Seagate ST500DM002"},
-	{Name: "sdb", Size: 500 * gigabyte, FSAvail: 400 * megabyte, Type: "HDD", Model: "Seagate ST500DM002"},
-	{Name: "sdc", Size: 1000 * gigabyte, FSAvail: 400 * megabyte, Type: "HDD", Model: "WD WD10EZEX"},
+var drives = []*storage.DriveInfo{
+	{Name: "sda", SizeBytes: 500 * gigabyte, FsAvail: 400 * megabyte, Type: "HDD", Model: "Seagate ST500DM002"},
+	{Name: "sdb", SizeBytes: 500 * gigabyte, FsAvail: 400 * megabyte, Type: "HDD", Model: "Seagate ST500DM002"},
+	{Name: "sdc", SizeBytes: 1000 * gigabyte, FsAvail: 400 * megabyte, Type: "HDD", Model: "WD WD10EZEX"},
 }
 
 func TestPoolSize(t *testing.T) {
