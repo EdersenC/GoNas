@@ -9,25 +9,31 @@ import (
 	"syscall"
 )
 
+var DevFolder = "/dev/"
+
 type DriveInfo struct {
-	Name              string      `json:"name"`
-	Path              string      `json:"path"`
-	SizeSectors       uint64      `json:"size_sectors"`
-	LogicalBlockSize  uint64      `json:"logical_block_size"`
-	PhysicalBlockSize uint64      `json:"physical_block_size"`
-	SizeBytes         uint64      `json:"size_bytes"`
-	IsRotational      bool        `json:"is_rotational"`
-	Model             string      `json:"model"`
-	Vendor            string      `json:"vendor"`
-	Type              string      `json:"type"`
-	MountPoints       []MountInfo `json:"mountpoint"`
-	FsType            string      `json:"fstype"`
-	FsAvail           uint64      `json:"fsavail"`
+	Name              string       `json:"name"`
+	Uuid              string       `json:"uuid"`
+	Path              string       `json:"path"`
+	SizeSectors       uint64       `json:"size_sectors"`
+	LogicalBlockSize  uint64       `json:"logical_block_size"`
+	PhysicalBlockSize uint64       `json:"physical_block_size"`
+	SizeBytes         uint64       `json:"size_bytes"`
+	IsRotational      bool         `json:"is_rotational"`
+	Model             string       `json:"model"`
+	Vendor            string       `json:"vendor"`
+	Type              string       `json:"type"`
+	MountPoint        string       `json:"mountpoint"`
+	Partitions        []*Partition `json:"partitions"`
+	FsType            string       `json:"fstype"`
+	FsAvail           uint64       `json:"fsavail"`
 }
-type MountInfo struct {
+
+type Partition struct {
 	Device     string
 	MountPoint string
 	FsType     string
+	FsAvail    uint64
 }
 type DriveFilter struct {
 	Names        []string
@@ -40,13 +46,13 @@ type DriveFilter struct {
 	MaxFsAvail   uint64
 }
 
-func Filter(f DriveFilter, d ...DriveInfo) []DriveInfo {
+func Filter(f DriveFilter, d ...*DriveInfo) []*DriveInfo {
 	// Precompute small things to avoid recomputing inside loop
 	hasNames := len(f.Names) > 0
 	checkMountPrefix := f.MountPrefix != ""
 
 	// Preallocate result capacity for small optimization
-	result := make([]DriveInfo, 0, len(d))
+	result := make([]*DriveInfo, 0, len(d))
 
 	for _, drive := range d {
 		// --- Names ---
@@ -72,7 +78,7 @@ func Filter(f DriveFilter, d ...DriveInfo) []DriveInfo {
 		// --- Mounted ---
 
 		// --- Mounted filters ---
-		isMounted := len(drive.MountPoints) > 0
+		isMounted := len(drive.MountPoint) > 0
 		if f.Mounted != nil {
 			if *f.Mounted && !isMounted {
 				continue
@@ -85,8 +91,8 @@ func Filter(f DriveFilter, d ...DriveInfo) []DriveInfo {
 		// --- Mount prefix filter ---
 		if checkMountPrefix {
 			match := false
-			for _, mp := range drive.MountPoints {
-				if strings.HasPrefix(mp.MountPoint, f.MountPrefix) {
+			for _, p := range drive.Partitions {
+				if strings.HasPrefix(p.MountPoint, f.MountPrefix) {
 					match = true
 					break
 				}
@@ -102,19 +108,19 @@ func Filter(f DriveFilter, d ...DriveInfo) []DriveInfo {
 	return result
 }
 
-func GetDrives() ([]DriveInfo, error) {
+func GetDrives() ([]*DriveInfo, error) {
 	basePath := "/sys/block"
 	entries, err := os.ReadDir(basePath)
 	if err != nil {
 		return nil, err
 	}
 
-	mountInfos := parseMounts("/proc/mounts")
-	var drives []DriveInfo
+	partitions := parsePartitions("/proc/mounts")
+	var drives []*DriveInfo
 
 	for _, e := range entries {
 		name := e.Name()
-		path := filepath.Join("/dev", name)
+		path := filepath.Join(DevFolder, name)
 
 		blockDir := filepath.Join(basePath, name, "queue")
 
@@ -140,7 +146,7 @@ func GetDrives() ([]DriveInfo, error) {
 		} else {
 			devType = "ssd"
 		}
-		drive := DriveInfo{
+		drive := &DriveInfo{
 			Name:              name,
 			Path:              path,
 			SizeSectors:       sizeSectors,
@@ -153,12 +159,13 @@ func GetDrives() ([]DriveInfo, error) {
 			Type:              devType,
 		}
 
-		// Check for mount info
-		for devPath, mount := range mountInfos {
+		// Check for p info
+		for devPath, p := range partitions {
 			if strings.HasPrefix(devPath, path) {
-				drive.MountPoints = mount
-				drive.FsType = mount[0].FsType
-				drive.FsAvail = getFsAvailable(mount[0].MountPoint)
+				drive.MountPoint = p[0].MountPoint
+				drive.FsType = p[0].FsType
+				drive.Partitions = p
+				drive.FsAvail = getFsAvailable(p[0].MountPoint)
 				break
 			}
 		}
@@ -185,24 +192,33 @@ func readString(path string) string {
 	return strings.TrimSpace(string(data))
 }
 
-func parseMounts(path string) map[string][]MountInfo {
+// todo: optimize and make partitions work
+func parsePartitions(path string) map[string][]*Partition {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil
 	}
-
-	mounts := make(map[string][]MountInfo)
+	var partitions = make(map[string][]*Partition)
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
 		fields := strings.Fields(line)
-		if len(fields) >= 3 {
-			mounts[fields[0]] = append(mounts[fields[0]], MountInfo{
-				MountPoint: fields[1],
-				FsType:     fields[2],
-			})
+		if len(fields) < 3 || !strings.HasPrefix(fields[0], DevFolder) {
+			continue
 		}
+		parentDrive := fields[0]
+		kernelDrive := DevFolder + "sd"
+		if strings.Contains(parentDrive, kernelDrive) {
+			parentDrive = helper.StripTrailingDigits(parentDrive)
+		}
+
+		partitions[parentDrive] = append(partitions[parentDrive], &Partition{
+			Device:     fields[0],
+			MountPoint: fields[1],
+			FsType:     fields[2],
+			FsAvail:    getFsAvailable(fields[1]),
+		})
 	}
-	return mounts
+	return partitions
 }
 
 func getFsAvailable(mount string) uint64 {

@@ -1,6 +1,17 @@
 package helper
 
-import "strings"
+import (
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
+
+var Gigabyte = uint64(1024 * 1024 * 1024)
+var Megabyte = uint64(1024 * 1024)
 
 func Contains(list []string, val string) bool {
 	for _, v := range list {
@@ -9,4 +20,135 @@ func Contains(list []string, val string) bool {
 		}
 	}
 	return false
+}
+
+// StripTrailingDigits returns s with any trailing digit characters removed.
+func StripTrailingDigits(s string) string {
+	i := len(s)
+	for i > 0 {
+		r, size := utf8.DecodeLastRuneInString(s[:i])
+		if unicode.IsDigit(r) {
+			i -= size
+			continue
+		}
+		break
+	}
+	return s[:i]
+}
+
+// InstallMdadm ensures mdadm is installed on the system.
+func installMdadm() error {
+	// Check if mdadm already exists
+	if _, err := exec.LookPath("mdadm"); err == nil {
+		fmt.Println("mdadm already installed ✅")
+		return nil
+	}
+
+	fmt.Println("mdadm not found — attempting to install...")
+
+	// Detect available package manager
+	var pm, installCmd string
+	switch {
+	case commandExists("apt"):
+		pm = "apt"
+		installCmd = "apt update -y && apt install -y mdadm"
+	case commandExists("dnf"):
+		pm = "dnf"
+		installCmd = "dnf install -y mdadm"
+	case commandExists("yum"):
+		pm = "yum"
+		installCmd = "yum install -y mdadm"
+	case commandExists("pacman"):
+		pm = "pacman"
+		installCmd = "pacman -Sy --noconfirm mdadm"
+	default:
+		return fmt.Errorf("no supported package manager found (apt, dnf, yum, pacman)")
+	}
+
+	fmt.Printf("Installing mdadm using %s...\n", pm)
+
+	cmd := exec.Command("bash", "-c", "sudo "+installCmd)
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to install mdadm with %s: %w", pm, err)
+	}
+
+	// Verify installation succeeded
+	if _, err := exec.LookPath("mdadm"); err != nil {
+		return fmt.Errorf("mdadm installation appears to have failed")
+	}
+
+	fmt.Println("mdadm successfully installed ✅")
+	return nil
+}
+
+// commandExists checks if a command is available in PATH
+func commandExists(cmd string) bool {
+	_, err := exec.LookPath(cmd)
+	return err == nil
+}
+
+func CheckRaidLevel(level int, drives int) error {
+	switch level {
+	case 0:
+		if drives < 2 {
+			return errors.New("raid0 requires at least 2 drives")
+		}
+	case 1:
+		if drives < 2 {
+			return errors.New("raid1 requires at least 2 drives")
+		}
+	case 5:
+		if drives < 3 {
+			return errors.New("raid5 requires at least 3 drives")
+		}
+	case 6:
+		if drives < 4 {
+			return errors.New("raid6 requires at least 4 drives")
+		}
+	case 10:
+		if drives < 4 || drives%2 != 0 {
+			return errors.New("raid10 requires at least 4 drives and an even number of drives")
+		}
+	default:
+		return errors.New("unsupported raid level")
+	}
+	return nil
+}
+
+var DefaultMountPoint = "/mnt/pools"
+
+func BuildMadam(args []string) error {
+	if err := installMdadm(); err != nil {
+		return err
+	}
+
+	cmd := exec.Command("mdadm", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to create RAID array: %w", err)
+	}
+	return nil
+}
+
+func CreateMountPoint(name string, mdDevice string) error {
+	// Create and mount directory
+	mountPoint := fmt.Sprintf("%s/%s", DefaultMountPoint, name)
+	if err := os.MkdirAll(mountPoint, 0755); err != nil {
+		return fmt.Errorf("failed to create mount directory: %w", err)
+	}
+
+	if err := exec.Command("mount", mdDevice, mountPoint).Run(); err != nil {
+		return fmt.Errorf("failed to mount RAID device: %w", err)
+	}
+	return nil
+}
+
+func FormatPool(format string, mdDevice string) error {
+	if err := exec.Command(format, "-F", mdDevice).Run(); err != nil {
+		return fmt.Errorf("failed to format RAID device: %w", err)
+	}
+	return nil
 }
