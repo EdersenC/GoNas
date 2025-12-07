@@ -9,21 +9,39 @@ import (
 )
 
 func main() {
-	createSystemPool()
 	displayDrives()
-}
-
-func createSystemPool() {
-	var pools = storage.Pools{}
-	drives := getSystemDrives("l")
-	raid := storage.Raid{Level: 10}
-	myPool := pools.NewPool("DezNuts", &raid, nil, drives...)
-	err := myPool.BuildPool()
+	err := helper.CreateLoopDevice("100G", 4)
+	if err != nil {
+		fmt.Println("Error creating loop devices:", err)
+		return
+	}
+	displayDrives()
+	pool, err := createSystemPool()
 	if err != nil {
 		fmt.Println("Error creating pool:", err)
 		return
 	}
+	displayDrives()
+	pool.Status = storage.Offline
+	err = pool.Delete()
+	if err != nil {
+		fmt.Println("Error deleting pool:", err)
+		return
+	}
+	displayDrives()
+}
+
+func createSystemPool() (*storage.Pool, error) {
+	var pools = storage.Pools{}
+	drives := getSystemDrives("l")
+	raid := storage.Raid{Level: 10}
+	myPool := pools.NewPool("DezNuts", &raid, nil, drives...)
+	err := myPool.Build("mkfs.ext4")
+	if err != nil {
+		return nil, err
+	}
 	fmt.Println("Pool created:", myPool.Name)
+	return myPool, nil
 }
 
 func getSystemDrives(names ...string) []*storage.DriveInfo {
@@ -69,11 +87,11 @@ func zeroSuperblocks(deviceNumbers ...int) error {
 		fmt.Printf("Executing: %s...\n", cmd.Args)
 
 		// Run the command and capture the output and error
-		output, err := cmd.CombinedOutput()
-		if err != nil {
+		output, er := cmd.CombinedOutput()
+		if er != nil {
 			// Print the output (which often contains the sudo error or mdadm error details)
 			log.Printf("Error clearing superblock on %s: %s", deviceName, string(output))
-			return fmt.Errorf("failed to execute mdadm on %s: %w", deviceName, err)
+			return fmt.Errorf("failed to execute mdadm on %s: %w", deviceName, er)
 		}
 
 		fmt.Printf("Successfully zeroed superblock on %s.\n", deviceName)

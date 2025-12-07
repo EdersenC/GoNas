@@ -6,20 +6,22 @@ import (
 	"github.com/google/uuid"
 	"goNAS/helper"
 	"goNAS/network"
+	"os"
+	"os/exec"
 )
 
 var Mirrored PoolType
 var Standard PoolType
 
 type PoolType interface {
-	Build(*Pool) error
+	Build(*Pool, string) error
 }
 
 type Raid struct {
 	Level int
 }
 
-func (r *Raid) Build(p *Pool) error {
+func (r *Raid) Build(p *Pool, format string) error {
 	if err := helper.CheckRaidLevel(r.Level, len(p.Drives)); err != nil {
 		return err
 	}
@@ -46,7 +48,7 @@ func (r *Raid) Build(p *Pool) error {
 	}
 
 	// Format the RAID device
-	if err = helper.FormatPool("mkfs.ext4", mdDevice); err != nil {
+	if err = helper.FormatPool(format, mdDevice); err != nil {
 		return err
 	}
 
@@ -77,8 +79,48 @@ func (p *Pools) GetPool(uuid string) (*Pool, error) {
 	return pool, nil
 }
 
+func (p *Pool) Delete() error {
+	if p.Status != Offline {
+		return errors.New("cannot delete a pool that is not offline")
+	}
+	umount := exec.Command("sudo", "umount", p.MdDevice)
+	if err := umount.Run(); err != nil {
+		return err
+	}
+
+	args := []string{"mdadm", "--remove", p.MdDevice}
+	mdamRemove := exec.Command("sudo", args...)
+	if err := mdamRemove.Run(); err != nil {
+		return err
+	}
+	args = []string{"mdadm", "--stop", p.MdDevice}
+	mdamStop := exec.Command("sudo", args...)
+	if err := mdamStop.Run(); err != nil {
+		return err
+	}
+
+	var drivePaths []string
+	for _, d := range p.Drives {
+		drivePaths = append(drivePaths, d.Path)
+	}
+	args = append([]string{"mdadm", "--zero-superblock"}, drivePaths...)
+	zeroOut := exec.Command("sudo", args...)
+	zeroOut.Stderr = os.Stderr
+	if err := zeroOut.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p *Pools) DeletePool(uuid string) error {
-	//todo: implement pool deletion logic in linux
+	pool, err := p.GetPool(uuid)
+	if err != nil {
+		return err
+	}
+	if err = pool.Delete(); err != nil {
+		return err
+	}
+
 	delete(*p, uuid)
 	return nil
 }
@@ -116,8 +158,8 @@ type Pool struct {
 	Network           *network.Interface
 }
 
-func (p *Pool) BuildPool() error {
-	return p.Type.Build(p)
+func (p *Pool) Build(format string) error {
+	return p.Type.Build(p, format)
 }
 
 func (p *Pool) AddDrives(drive ...*DriveInfo) {

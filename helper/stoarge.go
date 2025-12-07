@@ -36,6 +36,19 @@ func StripTrailingDigits(s string) string {
 	return s[:i]
 }
 
+func CreateLoopDevice(size string, amount int) error {
+	name := "testDrive"
+	amountStr := fmt.Sprintf("%d", amount)
+	filePath := "./scripts/makeFakeDrives.sh"
+	cmd := exec.Command("sudo", filePath, name, amountStr, size)
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to create Loop devices with size %s: %w", size, err)
+	}
+	return nil
+}
+
 // InstallMdadm ensures mdadm is installed on the system.
 func installMdadm() error {
 	// Check if mdadm already exists
@@ -142,6 +155,13 @@ func CreateMountPoint(name string, mdDevice string) error {
 
 	if err := exec.Command("mount", mdDevice, mountPoint).Run(); err != nil {
 		return fmt.Errorf("failed to mount RAID device: %w", err)
+	}
+	return nil
+}
+
+func UnmountDrive(mountPoint string) error {
+	if err := exec.Command("umount", mountPoint).Run(); err != nil {
+		return fmt.Errorf("failed to unmount drive: %w", err)
 	}
 	return nil
 }

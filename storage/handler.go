@@ -192,7 +192,7 @@ func readString(path string) string {
 	return strings.TrimSpace(string(data))
 }
 
-// todo: optimize and make partitions work
+// todo: optimize
 func parsePartitions(path string) map[string][]*Partition {
 	data, err := os.ReadFile(path)
 	if err != nil {
