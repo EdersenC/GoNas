@@ -21,13 +21,11 @@ func main() {
 		fmt.Println("Error creating pool:", err)
 		return
 	}
-	displayDrives()
-	pool.Status = storage.Offline
-	err = pool.Delete()
-	if err != nil {
-		fmt.Println("Error deleting pool:", err)
-		return
-	}
+	defer func() {
+		fmt.Println("Deleting pool:", pool.Name)
+		pool.Status = storage.Offline
+		_ = pool.Delete()
+	}()
 	displayDrives()
 }
 
