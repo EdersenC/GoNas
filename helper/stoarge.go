@@ -39,7 +39,7 @@ func StripTrailingDigits(s string) string {
 func CreateLoopDevice(size string, amount int) error {
 	name := "testDrive"
 	amountStr := fmt.Sprintf("%d", amount)
-	filePath := "./scripts/makeFakeDrives.sh"
+	filePath := "./makeFakeDrives.sh"
 	cmd := exec.Command("sudo", filePath, name, amountStr, size)
 	cmd.Stdout = nil
 	cmd.Stderr = nil

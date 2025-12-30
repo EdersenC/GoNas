@@ -9,17 +9,19 @@ import (
 )
 
 func main() {
-	displayDrives()
-	err := helper.CreateLoopDevice("100G", 4)
-	if err != nil {
-		fmt.Println("Error creating loop devices:", err)
-		return
+	if err := run(); err != nil {
+		fmt.Println("Fatal:", err)
 	}
+}
+
+func run() error {
 	displayDrives()
+	if err := helper.CreateLoopDevice("100G", 4); err != nil {
+		return err
+	}
 	pool, err := createSystemPool()
 	if err != nil {
-		fmt.Println("Error creating pool:", err)
-		return
+		return err
 	}
 	defer func() {
 		fmt.Println("Deleting pool:", pool.Name)
@@ -27,6 +29,7 @@ func main() {
 		_ = pool.Delete()
 	}()
 	displayDrives()
+	return nil
 }
 
 func createSystemPool() (*storage.Pool, error) {
@@ -40,6 +43,7 @@ func createSystemPool() (*storage.Pool, error) {
 	}
 	fmt.Println("Pool created:", myPool.Name)
 	return myPool, nil
+
 }
 
 func getSystemDrives(names ...string) []*storage.DriveInfo {
