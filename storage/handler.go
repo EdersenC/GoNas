@@ -46,12 +46,11 @@ type DriveFilter struct {
 	MaxFsAvail   uint64
 }
 
-func Filter(f DriveFilter, d ...*DriveInfo) []*DriveInfo {
+func FilterFor(f DriveFilter, d ...*DriveInfo) []*DriveInfo {
 	// Precompute small things to avoid recomputing inside loop
 	hasNames := len(f.Names) > 0
 	checkMountPrefix := f.MountPrefix != ""
 
-	// Preallocate result capacity for small optimization
 	result := make([]*DriveInfo, 0, len(d))
 
 	for _, drive := range d {

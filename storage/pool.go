@@ -3,11 +3,12 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"goNAS/helper"
 	"goNAS/network"
 	"os"
 	"os/exec"
+
+	"github.com/google/uuid"
 )
 
 var Mirrored PoolType
@@ -83,8 +84,7 @@ func (p *Pool) Delete() error {
 	if p.Status != Offline {
 		return errors.New("cannot delete a pool that is not offline")
 	}
-	umount := exec.Command("sudo", "umount", p.MdDevice)
-	if err := umount.Run(); err != nil {
+	if err := helper.UnmountDrive(p.MdDevice); err != nil {
 		return err
 	}
 

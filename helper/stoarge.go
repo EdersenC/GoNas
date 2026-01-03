@@ -160,7 +160,7 @@ func CreateMountPoint(name string, mdDevice string) error {
 }
 
 func UnmountDrive(mountPoint string) error {
-	if err := exec.Command("umount", mountPoint).Run(); err != nil {
+	if err := exec.Command("sudo", "umount", mountPoint).Run(); err != nil {
 		return fmt.Errorf("failed to unmount drive: %w", err)
 	}
 	return nil

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"goNAS/api"
 	"goNAS/helper"
 	"goNAS/storage"
 	"log"
@@ -15,11 +16,16 @@ func main() {
 }
 
 func run() error {
+	nas := &api.Nas{POOLS: &storage.Pools{}}
 	displayDrives()
 	if err := helper.CreateLoopDevice("100G", 4); err != nil {
 		return err
 	}
-	pool, err := createSystemPool()
+	pool, err := createSystemPool(nas.POOLS)
+	if err != nil {
+		return err
+	}
+	err = api.Run(nas, ":8080")
 	if err != nil {
 		return err
 	}
@@ -32,10 +38,9 @@ func run() error {
 	return nil
 }
 
-func createSystemPool() (*storage.Pool, error) {
-	var pools = storage.Pools{}
+func createSystemPool(pools *storage.Pools) (*storage.Pool, error) {
 	drives := getSystemDrives("l")
-	raid := storage.Raid{Level: 10}
+	raid := storage.Raid{Level: 0} //Todo Raid 1 needs to be fixed
 	myPool := pools.NewPool("DezNuts", &raid, nil, drives...)
 	err := myPool.Build("mkfs.ext4")
 	if err != nil {
@@ -47,19 +52,16 @@ func createSystemPool() (*storage.Pool, error) {
 }
 
 func getSystemDrives(names ...string) []*storage.DriveInfo {
-	drives, err := storage.GetDrives()
-	drives = storage.Filter(storage.DriveFilter{
+	drives := getSystemDrives()
+	drives = storage.FilterFor(storage.DriveFilter{
 		Names:   names,
 		MinSize: 1 * helper.Gigabyte,
 	}, drives...)
-	if err != nil {
-		panic(err)
-	}
 	return drives
 }
 
 func displayDrives() {
-	drives := getSystemDrives()
+	drives, _ := storage.GetDrives()
 	for _, d := range drives {
 		fmt.Printf("Device: %-6s | Type: %-5s | Size: %-8s | Model: %-20s | FSAvail: %s\n",
 			d.Name, d.Type, helper.HumanSize(d.SizeBytes), d.Model, helper.HumanSize(d.FsAvail))
