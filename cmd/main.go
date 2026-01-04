@@ -1,31 +1,31 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"goNAS/api"
 	"goNAS/helper"
 	"goNAS/storage"
 	"log"
+	"os"
 	"os/exec"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func main() {
-	if err := run(); err != nil {
+	server := api.NewAPIServer(":8080")
+	if err := run(server); err != nil {
 		fmt.Println("Fatal:", err)
 	}
 }
 
-func run() error {
-	nas := &api.Nas{POOLS: &storage.Pools{}}
-	displayDrives()
+func run(server *api.Server) error {
 	if err := helper.CreateLoopDevice("100G", 4); err != nil {
 		return err
 	}
-	pool, err := createSystemPool(nas.POOLS)
-	if err != nil {
-		return err
-	}
-	err = api.Run(nas, ":8080")
+	pool, err := createSystemPool(server.Nas.POOLS, 5)
 	if err != nil {
 		return err
 	}
@@ -33,26 +33,57 @@ func run() error {
 		fmt.Println("Deleting pool:", pool.Name)
 		pool.Status = storage.Offline
 		_ = pool.Delete()
+		displayDrives()
 	}()
-	displayDrives()
+
+	go runServer(server)
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+	defer stop()
+	graceFull(server, ctx)
+
 	return nil
 }
 
-func createSystemPool(pools *storage.Pools) (*storage.Pool, error) {
+func runServer(server *api.Server) {
+	go func() {
+		err := server.Start()
+		if err != nil {
+		}
+	}()
+}
+
+func graceFull(server *api.Server, ctx context.Context) {
+	<-ctx.Done()
+	fmt.Println("Shutting down gracefully, press Ctrl+C again to force")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+}
+
+func createSystemPool(pools *storage.Pools, level int) (*storage.Pool, error) {
 	drives := getSystemDrives("l")
-	raid := storage.Raid{Level: 0} //Todo Raid 1 needs to be fixed
+	raid := storage.Raid{Level: level} //Todo Raid 1 needs to be fixed
 	myPool := pools.NewPool("DezNuts", &raid, nil, drives...)
 	err := myPool.Build("mkfs.ext4")
 	if err != nil {
 		return nil, err
 	}
 	fmt.Println("Pool created:", myPool.Name)
+	displayDrives()
 	return myPool, nil
 
 }
 
 func getSystemDrives(names ...string) []*storage.DriveInfo {
-	drives := getSystemDrives()
+	drives, _ := storage.GetDrives()
 	drives = storage.FilterFor(storage.DriveFilter{
 		Names:   names,
 		MinSize: 1 * helper.Gigabyte,
