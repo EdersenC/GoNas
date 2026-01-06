@@ -4,6 +4,7 @@ import (
 	"goNAS/helper"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -11,9 +12,19 @@ import (
 
 var DevFolder = "/dev/"
 
+type DriveKey struct {
+	Kind  string
+	Value string
+}
+
+func (k DriveKey) String() string { return k.Kind + ":" + k.Value }
+
 type DriveInfo struct {
 	Name              string       `json:"name"`
 	Uuid              string       `json:"uuid"`
+	DriveKey          DriveKey     `json:"drive_key"`
+	ByIds             []string     `json:"by_ids"`
+	Wwid              string       `json:"wwid"`
 	Path              string       `json:"path"`
 	SizeSectors       uint64       `json:"size_sectors"`
 	LogicalBlockSize  uint64       `json:"logical_block_size"`
@@ -22,6 +33,7 @@ type DriveInfo struct {
 	IsRotational      bool         `json:"is_rotational"`
 	Model             string       `json:"model"`
 	Vendor            string       `json:"vendor"`
+	Serial            string       `json:"serial"`
 	Type              string       `json:"type"`
 	MountPoint        string       `json:"mountpoint"`
 	Partitions        []*Partition `json:"partitions"`
@@ -107,6 +119,62 @@ func FilterFor(f DriveFilter, d ...*DriveInfo) []*DriveInfo {
 	return result
 }
 
+func symlinksPointingToDev(dir string, devBase string) ([]string, error) {
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, e := range ents {
+		full := filepath.Join(dir, e.Name())
+		target, err := os.Readlink(full)
+		if err != nil {
+			continue
+		}
+		// target often like "../../sdb" or "../../nvme0n1"
+		if filepath.Base(target) == devBase {
+			out = append(out, e.Name()) // store symlink NAME, not full path
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+func pickBestByID(byIDs []string) (DriveKey, bool) {
+	preferPrefixes := []string{
+		"wwn-",       // excellent for rotational/SAS/SATA
+		"nvme-eui.",  // excellent for NVMe
+		"nvme-uuid.", // good for NVMe (varies)
+		"nvme-",      // usually includes model+serial
+		"ata-",       // SATA model+serial
+		"scsi-",      // may include WWN/serial
+	}
+	for _, p := range preferPrefixes {
+		for _, id := range byIDs {
+			if strings.HasPrefix(id, p) {
+				return DriveKey{Kind: "by-id", Value: id}, true
+			}
+		}
+	}
+	return DriveKey{}, false
+}
+
+func (d *DriveInfo) generateDriveKey() {
+	key, ok := pickBestByID(d.ByIds)
+	if !ok && len(d.Wwid) > 0 {
+		key = DriveKey{Kind: "wwid", Value: d.Wwid}
+		ok = true
+	}
+	if !ok && len(d.Serial) > 0 {
+		key = DriveKey{Kind: "serial", Value: d.Serial}
+		ok = true
+	}
+	if !ok {
+		keyString := d.Name + "_" + d.Model + "_" + d.Vendor + "_" + strconv.FormatUint(d.SizeBytes, 10)
+		key = DriveKey{Kind: "hash", Value: keyString}
+	}
+	d.DriveKey = key
+}
+
 func GetDrives() ([]*DriveInfo, error) {
 	basePath := "/sys/block"
 	entries, err := os.ReadDir(basePath)
@@ -139,13 +207,19 @@ func GetDrives() ([]*DriveInfo, error) {
 		isRotational := readUint(filepath.Join(blockDir, "rotational")) == 1
 		model := readString(filepath.Join(basePath, name, "device/model"))
 		vendor := readString(filepath.Join(basePath, name, "device/vendor"))
+		serial := readString(filepath.Join(basePath, name, "device/serial"))
 		devType := readString(filepath.Join(basePath, name, "device/type"))
+		byIDs, _ := symlinksPointingToDev("/dev/disk/by-id", name)
+		wwid := readString(filepath.Join(basePath, name, "device/wwid"))
 		if len(devType) == 0 || devType == "0" {
 			devType = "disk"
 		} else {
 			devType = "ssd"
 		}
 		drive := &DriveInfo{
+			ByIds:             byIDs,
+			DriveKey:          DriveKey{},
+			Wwid:              wwid,
 			Name:              name,
 			Path:              path,
 			SizeSectors:       sizeSectors,
@@ -155,8 +229,10 @@ func GetDrives() ([]*DriveInfo, error) {
 			IsRotational:      isRotational,
 			Model:             model,
 			Vendor:            vendor,
+			Serial:            serial,
 			Type:              devType,
 		}
+		drive.generateDriveKey()
 
 		// Check for p info
 		for devPath, p := range partitions {

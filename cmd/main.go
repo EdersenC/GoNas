@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"goNAS/DB"
 	"goNAS/api"
 	"goNAS/helper"
 	"goNAS/storage"
@@ -15,9 +16,22 @@ import (
 )
 
 func main() {
-	server := api.NewAPIServer(":8080")
-	if err := run(server); err != nil {
-		fmt.Println("Fatal:", err)
+	db := DB.NewDB("Drives.db")
+	defer func() {
+		err := db.Close()
+		if err != nil {
+			log.Fatalf("Error closing database: %v", err)
+		}
+	}()
+
+	err := db.InitSchema(context.Background())
+	if err != nil {
+		log.Fatalf("Error initializing database schema: %v", err)
+	}
+
+	server := api.NewAPIServer(":8080", db)
+	if err = run(server); err != nil {
+		log.Fatalf("Error running server: %v", err)
 	}
 }
 
@@ -69,7 +83,7 @@ func graceFull(server *api.Server, ctx context.Context) {
 }
 
 func createSystemPool(pools *storage.Pools, level int) (*storage.Pool, error) {
-	drives := getSystemDrives("l")
+	drives := storage.GetSystemDrives("l")
 	raid := storage.Raid{Level: level} //Todo Raid 1 needs to be fixed
 	myPool := pools.NewPool("DezNuts", &raid, nil, drives...)
 	err := myPool.Build("mkfs.ext4")
@@ -80,15 +94,6 @@ func createSystemPool(pools *storage.Pools, level int) (*storage.Pool, error) {
 	displayDrives()
 	return myPool, nil
 
-}
-
-func getSystemDrives(names ...string) []*storage.DriveInfo {
-	drives, _ := storage.GetDrives()
-	drives = storage.FilterFor(storage.DriveFilter{
-		Names:   names,
-		MinSize: 1 * helper.Gigabyte,
-	}, drives...)
-	return drives
 }
 
 func displayDrives() {

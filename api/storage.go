@@ -1,34 +1,58 @@
 package api
 
 import (
+	"errors"
 	"goNAS/storage"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterDrives(r *gin.RouterGroup) {
-	r.GET("/drives", listDrives)
-	r.POST("/:drive_id/adopt", adoptDrive)
+var (
+	ErrDriveNotFound  = errors.New("drive not found")
+	ErrAlreadyAdopted = errors.New("drive already adopted")
+)
+
+func (n *Nas) driveError(err error, c *gin.Context) {
+	switch {
+	case errors.Is(err, ErrDriveNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	case errors.Is(err, ErrAlreadyAdopted):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+	}
 }
 
+func listAdoptedDrives(c *gin.Context) {
+	SuccessResponse(c, NAS.AdoptedDrives)
+}
+
+// Todo Make UUID System for drives
 func adoptDrive(c *gin.Context) {
-
-}
-
-func listDrives(c *gin.Context) {
-	drives, err := storage.GetDrives()
+	key := c.Param("key")
+	driveToAdopt, err := NAS.AdoptDriveByKey(key, c)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		NAS.driveError(err, c)
 		return
 	}
-	c.JSON(http.StatusAccepted, drives)
+	SuccessResponse(c, driveToAdopt)
 }
 
-func RegisterPools(r *gin.RouterGroup) {
-	r.GET("/pools", listPools)
+func listDrives(c *gin.Context, rescan bool) {
+	if len(NAS.SystemDrives) == 0 || rescan {
+		NAS.SystemDrives = storage.GetSystemDrives()
+	}
+	SuccessResponse(c, NAS.SystemDrives)
 }
 
 func listPools(c *gin.Context) {
-	c.JSON(http.StatusAccepted, NAS.POOLS)
+	SuccessResponse(c, NAS.POOLS)
+}
+
+func SuccessResponse(c *gin.Context, data interface{}) {
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"data":   data,
+	})
 }

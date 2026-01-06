@@ -214,3 +214,12 @@ func (p *Pool) CalculateAvailableCapacity() {
 	}
 	p.AvailableCapacity = available
 }
+
+func GetSystemDrives(names ...string) []*DriveInfo {
+	drives, _ := GetDrives()
+	drives = FilterFor(DriveFilter{
+		Names:   names,
+		MinSize: 1 * helper.Gigabyte,
+	}, drives...)
+	return drives
+}
