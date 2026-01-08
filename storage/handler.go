@@ -58,6 +58,10 @@ type DriveFilter struct {
 	MaxFsAvail   uint64
 }
 
+func (d *DriveInfo) GetUuid() string { return d.Uuid }
+
+func (d *DriveInfo) SetUuid(uuid string) { d.Uuid = uuid }
+
 func FilterFor(f DriveFilter, d ...*DriveInfo) []*DriveInfo {
 	// Precompute small things to avoid recomputing inside loop
 	hasNames := len(f.Names) > 0

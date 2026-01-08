@@ -159,13 +159,6 @@ func CreateMountPoint(name string, mdDevice string) error {
 	return nil
 }
 
-func UnmountDrive(mountPoint string) error {
-	if err := exec.Command("sudo", "umount", mountPoint).Run(); err != nil {
-		return fmt.Errorf("failed to unmount drive: %w", err)
-	}
-	return nil
-}
-
 func FormatPool(format string, mdDevice string) error {
 	if err := exec.Command(format, "-F", mdDevice).Run(); err != nil {
 		return fmt.Errorf("failed to format RAID device: %w", err)

@@ -11,7 +11,24 @@ import (
 var (
 	ErrDriveNotFound  = errors.New("drive not found")
 	ErrAlreadyAdopted = errors.New("drive already adopted")
+
+	ErrPoolNotFound       = errors.New("pool not found")
+	ErrPoolInUse          = errors.New("pool is currently in use")
+	ErrInsufficientDrives = errors.New("insufficient drives for the requested pool type")
 )
+
+func (n *Nas) poolError(err error, c *gin.Context) {
+	switch {
+	case errors.Is(err, ErrPoolNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	case errors.Is(err, ErrPoolInUse):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+	case errors.Is(err, ErrInsufficientDrives):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
+	}
+}
 
 func (n *Nas) driveError(err error, c *gin.Context) {
 	switch {
@@ -20,7 +37,7 @@ func (n *Nas) driveError(err error, c *gin.Context) {
 	case errors.Is(err, ErrAlreadyAdopted):
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
 	}
 }
 
@@ -49,6 +66,60 @@ func listDrives(c *gin.Context, rescan bool) {
 func listPools(c *gin.Context) {
 	SuccessResponse(c, NAS.POOLS)
 }
+
+func createPool(c *gin.Context) {
+	var req struct {
+		Name      string   `json:"name" binding:"required"`
+		RaidLevel int      `json:"raidLevel" binding:"required"`
+		Drives    []string `json:"drives" binding:"required"`
+		Format    string   `json:"format"`
+		Build     bool     `json:"build"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	pool, err := NAS.POOLS.NewPool(req.Name, &storage.Raid{Level: req.RaidLevel}, nil)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+	err = NAS.PopulatePool(pool, req.Drives, c)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+
+	if req.Build {
+		err = pool.Build(req.Format)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	err = NAS.POOLS.AddPool(pool)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+	SuccessResponse(c, pool.Uuid)
+}
+
+func deletePool(c *gin.Context) {}
+
+func getPool(c *gin.Context) {
+	uuid := c.Param("uuid")
+	pool, err := NAS.POOLS.GetPool(uuid)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+	SuccessResponse(c, pool)
+}
+
+func updatePool(c *gin.Context) {}
 
 func SuccessResponse(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, gin.H{

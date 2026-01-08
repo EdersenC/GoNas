@@ -14,19 +14,37 @@ import (
 var Mirrored PoolType
 var Standard PoolType
 
+type Pool struct {
+	Name              string
+	Uuid              string
+	Status            Status
+	Drives            map[string]*DriveInfo
+	MountPoint        string
+	MdDevice          string
+	Type              PoolType
+	TotalCapacity     uint64
+	AvailableCapacity uint64
+	Network           *network.Interface
+	CreatedAt         string
+}
+
 type PoolType interface {
 	Build(*Pool, string) error
+	Value() string
 }
 
 type Raid struct {
 	Level int
 }
 
+func (r *Raid) Value() string {
+	return fmt.Sprintf("raid%d", r.Level)
+}
+
 func (r *Raid) Build(p *Pool, format string) error {
 	if err := helper.CheckRaidLevel(r.Level, len(p.Drives)); err != nil {
 		return err
 	}
-	mdDevice := "/dev/md/" + p.Name
 	drives := make([]string, 0, len(p.Drives))
 	for _, d := range p.Drives {
 		drives = append(drives, DevFolder+d.Name)
@@ -35,7 +53,7 @@ func (r *Raid) Build(p *Pool, format string) error {
 		[]string{
 			"--create",
 			"--verbose",
-			mdDevice,
+			p.MdDevice,
 			fmt.Sprintf("--level=%d", r.Level),
 			fmt.Sprintf("--raid-devices=%d", len(p.Drives)),
 			fmt.Sprintf("--name=%s", p.Name),
@@ -49,16 +67,15 @@ func (r *Raid) Build(p *Pool, format string) error {
 	}
 
 	// Format the RAID device
-	if err = helper.FormatPool(format, mdDevice); err != nil {
+	if err = helper.FormatPool(format, p.MdDevice); err != nil {
 		return err
 	}
 
 	// Create and mount the mount point
-	if err = helper.CreateMountPoint(p.Name, mdDevice); err != nil {
+	if err = helper.CreateMountPoint(p.Name, p.MdDevice); err != nil {
 		return err
 	}
 
-	p.MdDevice = mdDevice
 	p.MountPoint = fmt.Sprintf("%s/%s", helper.DefaultMountPoint, p.Name)
 	p.Status = Healthy
 	return nil
@@ -80,11 +97,18 @@ func (p *Pools) GetPool(uuid string) (*Pool, error) {
 	return pool, nil
 }
 
+func (p *Pool) UnmountDrive() error {
+	if err := exec.Command("sudo", "umount", p.MountPoint).Run(); err != nil {
+		return fmt.Errorf("failed to unmount drive: %w", err)
+	}
+	return nil
+}
+
 func (p *Pool) Delete() error {
 	if p.Status != Offline {
 		return errors.New("cannot delete a pool that is not offline")
 	}
-	if err := helper.UnmountDrive(p.MdDevice); err != nil {
+	if err := p.UnmountDrive(); err != nil {
 		return err
 	}
 
@@ -125,39 +149,51 @@ func (p *Pools) DeletePool(uuid string) error {
 	return nil
 }
 
-func (p *Pools) NewPool(name string, poolType PoolType, network *network.Interface, drives ...*DriveInfo) *Pool {
+// NewPool creates a new pool instance.
+func (p *Pools) NewPool(name string, poolType PoolType, network *network.Interface, drives ...*DriveInfo) (*Pool, error) {
 	poolMap := make(map[string]*DriveInfo)
 	poolId := uuid.New().String()
 	for i, _ := range drives {
 		poolMap[drives[i].Name] = drives[i]
 	}
 	pool := Pool{
-		Name:    name,
-		Uuid:    poolId,
-		Status:  Offline,
-		Drives:  poolMap,
-		Type:    poolType,
-		Network: network,
+		Name:      name,
+		Uuid:      poolId,
+		Status:    Offline,
+		Drives:    poolMap,
+		MdDevice:  "/dev/md/" + name,
+		Type:      poolType,
+		Network:   network,
+		CreatedAt: CreationTime(),
 	}
 	pool.CalculateTotalCapacity()
 	pool.CalculateAvailableCapacity()
-	(*p)[poolId] = &pool
-	return &pool
+	return &pool, nil
 }
 
-type Pool struct {
-	Name              string
-	Uuid              string
-	Status            Status
-	Drives            map[string]*DriveInfo
-	MountPoint        string
-	MdDevice          string
-	Type              PoolType
-	TotalCapacity     uint64
-	AvailableCapacity uint64
-	Network           *network.Interface
+// CreateAndAddPool creates a new pool and adds it to the Pools collection.
+func (p *Pools) CreateAndAddPool(name string, poolType PoolType, network *network.Interface, drives ...*DriveInfo) (*Pool, error) {
+	pool, err := p.NewPool(name, poolType, network, drives...)
+	if err != nil {
+		return nil, err
+	}
+	err = p.AddPool(pool)
+	if err != nil {
+		return nil, err
+	}
+	return pool, nil
 }
 
+// AddPool adds a new pool to the Pools collection.
+func (p *Pools) AddPool(pool *Pool) error {
+	if _, exists := (*p)[pool.Uuid]; exists {
+		return errors.New("pool with the same UUID already exists")
+	}
+	(*p)[pool.Uuid] = pool
+	return nil
+}
+
+// Build constructs the storage pool based on its type and format.
 func (p *Pool) Build(format string) error {
 	return p.Type.Build(p, format)
 }

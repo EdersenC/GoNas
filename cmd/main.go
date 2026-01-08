@@ -51,14 +51,23 @@ func run(server *api.Server) error {
 	}()
 
 	go runServer(server)
+	sigCh := make(chan os.Signal, 4)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+
+	go func() {
+		for s := range sigCh {
+			log.Printf("received signal: %v", s)
+		}
+	}()
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,
 		syscall.SIGTERM,
+		syscall.SIGINT,
+		syscall.SIGQUIT,
 	)
 	defer stop()
 	graceFull(server, ctx)
-
 	return nil
 }
 
@@ -66,6 +75,7 @@ func runServer(server *api.Server) {
 	go func() {
 		err := server.Start()
 		if err != nil {
+			log.Fatalf("Error starting server: %v", err)
 		}
 	}()
 }
@@ -85,8 +95,11 @@ func graceFull(server *api.Server, ctx context.Context) {
 func createSystemPool(pools *storage.Pools, level int) (*storage.Pool, error) {
 	drives := storage.GetSystemDrives("l")
 	raid := storage.Raid{Level: level} //Todo Raid 1 needs to be fixed
-	myPool := pools.NewPool("DezNuts", &raid, nil, drives...)
-	err := myPool.Build("mkfs.ext4")
+	myPool, err := pools.CreateAndAddPool("DezNuts", &raid, nil, drives...)
+	if err != nil {
+		return nil, err
+	}
+	err = myPool.Build("mkfs.ext4")
 	if err != nil {
 		return nil, err
 	}

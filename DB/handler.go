@@ -55,16 +55,42 @@ func Init(path string) (*sql.DB, error) {
 }
 
 func (db *DB) InitSchema(ctx context.Context) error {
+	if err := db.createPoolTable(ctx); err != nil {
+		return err
+	}
+
+	if err := db.createDriveTable(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (db *DB) createDriveTable(ctx context.Context) error {
 	const ddl = `
-CREATE TABLE IF NOT EXISTS drives (
+CREATE TABLE IF NOT EXISTS drive (
   kind       TEXT NOT NULL,
   value      TEXT NOT NULL,
   uuid       TEXT NOT NULL,
-  adopted_at TEXT NOT NULL,
+  poolID     TEXT,               
+  createdAt  TEXT NOT NULL,
+
   PRIMARY KEY (kind, value),
-  UNIQUE (uuid)
-); 
+  UNIQUE (uuid),
+
+  FOREIGN KEY (poolID)
+    REFERENCES Pool(uuid)
+    ON DELETE SET NULL
+);
 `
 	_, err := db.conn.ExecContext(ctx, ddl)
 	return err
+}
+
+func quoteList(vals []string) string {
+	out := make([]string, 0, len(vals))
+	for _, v := range vals {
+		v = strings.ReplaceAll(v, "'", "''")
+		out = append(out, fmt.Sprintf("'%s'", v))
+	}
+	return strings.Join(out, ", ")
 }
