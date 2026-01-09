@@ -65,27 +65,6 @@ func (db *DB) InitSchema(ctx context.Context) error {
 	return nil
 }
 
-func (db *DB) createDriveTable(ctx context.Context) error {
-	const ddl = `
-CREATE TABLE IF NOT EXISTS drive (
-  kind       TEXT NOT NULL,
-  value      TEXT NOT NULL,
-  uuid       TEXT NOT NULL,
-  poolID     TEXT,               
-  createdAt  TEXT NOT NULL,
-
-  PRIMARY KEY (kind, value),
-  UNIQUE (uuid),
-
-  FOREIGN KEY (poolID)
-    REFERENCES Pool(uuid)
-    ON DELETE SET NULL
-);
-`
-	_, err := db.conn.ExecContext(ctx, ddl)
-	return err
-}
-
 func quoteList(vals []string) string {
 	out := make([]string, 0, len(vals))
 	for _, v := range vals {

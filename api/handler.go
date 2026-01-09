@@ -41,7 +41,7 @@ func NewAPIServer(addr string, db *DB.DB) *Server {
 	return server
 }
 func (s *Server) Start() error {
-	s.Nas.SystemDrives = storage.GetSystemDrives()
+	s.Nas.SystemDrives = storage.GetSystemDriveMap()
 	go func() {
 		if err := s.httpServer.ListenAndServe(); err != nil &&
 			!errors.Is(err, http.ErrServerClosed) {
@@ -60,7 +60,11 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func (s *Server) LoadData(c context.Context) error {
-	err := s.Nas.LoadAdoptedDrives(c)
+	err := s.Nas.LoadPools(c)
+	if err != nil {
+		return err
+	}
+	err = s.Nas.LoadAdoptedDrives(c)
 	if err != nil {
 		return err
 	}
@@ -69,8 +73,8 @@ func (s *Server) LoadData(c context.Context) error {
 
 type Nas struct {
 	POOLS         *storage.Pools
-	SystemDrives  []*storage.DriveInfo
-	AdoptedDrives []*storage.AdoptedDrive
+	SystemDrives  map[string]*storage.DriveInfo
+	AdoptedDrives map[string]*storage.AdoptedDrive
 }
 
 var NAS = &Nas{}
@@ -80,15 +84,49 @@ func (n *Nas) LoadAdoptedDrives(c context.Context) error {
 	if err != nil {
 		return err
 	}
-	n.AdoptedDrives = make([]*storage.AdoptedDrive, 0, len(adoptedDrives))
+	n.AdoptedDrives = make(map[string]*storage.AdoptedDrive)
 	for i := range adoptedDrives {
 		adoptedDrive := adoptedDrives[i]
 		drive := n.getDriveByKey(adoptedDrives[i].Key())
-		if drive != nil {
-			drive.Uuid = adoptedDrive.GetUuid()
-			adoptedDrive.Drive = drive
+		if err = n.ClaimDrive(drive, adoptedDrive); err != nil {
+			return err
 		}
-		n.AdoptedDrives = append(n.AdoptedDrives, &adoptedDrive)
+	}
+	return nil
+}
+
+func (n *Nas) ClaimDrive(drive *storage.DriveInfo, adoptedDrive storage.AdoptedDrive) error {
+	if drive == nil {
+		return ErrDriveNotFound
+	}
+	drive.Uuid = adoptedDrive.GetUuid()
+	adoptedDrive.Drive = drive
+
+	if adoptedDrive.GetPoolID() != "" {
+		pool, err := n.POOLS.GetPool(adoptedDrive.GetPoolID())
+		if err != nil {
+			return err
+		}
+		pool.AddDrives(drive)
+		return nil
+	}
+
+	//if drive is not part of a pool, add to adopted drives
+	n.AdoptedDrives[adoptedDrive.GetUuid()] = &adoptedDrive
+	return nil
+}
+
+func (n *Nas) LoadPools(c context.Context) error {
+	pools, err := SERVER.Db.QueryAllPools(c)
+	if err != nil {
+		return err
+	}
+	n.POOLS = &storage.Pools{}
+	for _, pool := range pools {
+		err = n.POOLS.AddPool(&pool)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -104,10 +142,8 @@ func (n *Nas) GetAdoptedDriveByKey(key string) *storage.AdoptedDrive {
 }
 
 func (n *Nas) GetDriveByUuid(id string) *storage.DriveInfo {
-	for _, drive := range n.AdoptedDrives {
-		if drive.GetUuid() == id {
-			return drive.Drive
-		}
+	if drive, exists := n.AdoptedDrives[id]; exists {
+		return drive.Drive
 	}
 	return nil
 }
@@ -133,6 +169,50 @@ func ensureUniqueKeys(keys ...string) error {
 	return nil
 }
 
+func (n *Nas) AddPool(p *storage.Pool, c *gin.Context) error {
+	err := n.POOLS.AddPool(p)
+	if err != nil {
+		return err
+	}
+	drivePatch := DB.DrivePatch{
+		PoolID: &p.Uuid,
+	}
+
+	for _, drive := range p.AdoptedDrives {
+		err = SERVER.Db.PatchDrive(c, drive.GetUuid(), drivePatch)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (n *Nas) AreDrivesAlreadyInPool(d []string) (string, bool) {
+	for _, uuid := range d {
+		adoptedDrive, ok := n.AdoptedDrives[uuid]
+		if !ok {
+			continue
+		}
+		if adoptedDrive.GetPoolID() != "" {
+			return uuid + ":" + adoptedDrive.GetPoolID(), true
+		}
+	}
+	return "", false
+}
+
+// RemoveAdoptedDrives removes an in mem adopted drive by its UUID.
+// Returns an error if the drive is not found or if it is currently in use by a pool.
+func (n *Nas) RemoveAdoptedDrives(uuid []string, c *gin.Context) error {
+	for _, id := range uuid {
+		if _, exists := n.AdoptedDrives[id]; !exists {
+			return ErrDriveNotFound
+		}
+		delete(n.AdoptedDrives, id)
+	}
+	return nil
+}
+
 // PopulatePool populates a storage pool with the specified drives ids.
 func (n *Nas) PopulatePool(pool *storage.Pool, drives []string, c *gin.Context) error {
 	if err := ensureUniqueKeys(drives...); err != nil {
@@ -143,7 +223,7 @@ func (n *Nas) PopulatePool(pool *storage.Pool, drives []string, c *gin.Context) 
 	for _, driveID := range drives {
 		drive := n.GetDriveByUuid(driveID)
 		if drive == nil {
-			return ErrDriveNotFound
+			return DriveNotFoundOrAlreadyInUse
 		}
 		poolDrives = append(poolDrives, drive)
 	}
@@ -172,6 +252,6 @@ func (n *Nas) AdoptDriveByKey(key string, c *gin.Context) (*storage.AdoptedDrive
 	if err != nil {
 		return nil, err
 	}
-	n.AdoptedDrives = append(n.AdoptedDrives, adoptedDrive)
+	n.AdoptedDrives[adoptedDrive.GetUuid()] = adoptedDrive
 	return adoptedDrive, nil
 }

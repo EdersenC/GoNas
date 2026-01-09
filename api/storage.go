@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	ErrDriveNotFound  = errors.New("drive not found")
-	ErrAlreadyAdopted = errors.New("drive already adopted")
+	ErrDriveNotFound            = errors.New("drive not found")
+	DriveNotFoundOrAlreadyInUse = errors.New("drive not found or already in use")
+	ErrAlreadyAdopted           = errors.New("drive already adopted")
 
 	ErrPoolNotFound       = errors.New("pool not found")
 	ErrPoolInUse          = errors.New("pool is currently in use")
@@ -18,24 +19,30 @@ var (
 )
 
 func (n *Nas) poolError(err error, c *gin.Context) {
+	message := gin.H{"error": err.Error()}
 	switch {
 	case errors.Is(err, ErrPoolNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, message)
 	case errors.Is(err, ErrPoolInUse):
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		c.JSON(http.StatusConflict, message)
+	case errors.Is(err, DriveNotFoundOrAlreadyInUse):
+		c.JSON(http.StatusConflict, message)
 	case errors.Is(err, ErrInsufficientDrives):
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, message)
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
 	}
 }
 
 func (n *Nas) driveError(err error, c *gin.Context) {
+	message := gin.H{"error": err.Error()}
 	switch {
 	case errors.Is(err, ErrDriveNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, message)
 	case errors.Is(err, ErrAlreadyAdopted):
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		c.JSON(http.StatusConflict, message)
+	case errors.Is(err, DriveNotFoundOrAlreadyInUse):
+		c.JSON(http.StatusConflict, message)
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
 	}
@@ -58,7 +65,7 @@ func adoptDrive(c *gin.Context) {
 
 func listDrives(c *gin.Context, rescan bool) {
 	if len(NAS.SystemDrives) == 0 || rescan {
-		NAS.SystemDrives = storage.GetSystemDrives()
+		NAS.SystemDrives = storage.GetSystemDriveMap()
 	}
 	SuccessResponse(c, NAS.SystemDrives)
 }
@@ -99,11 +106,12 @@ func createPool(c *gin.Context) {
 		}
 	}
 
-	err = NAS.POOLS.AddPool(pool)
+	err = NAS.AddPool(pool, c)
 	if err != nil {
 		NAS.poolError(err, c)
 		return
 	}
+	_ = NAS.RemoveAdoptedDrives(req.Drives, c)
 	SuccessResponse(c, pool.Uuid)
 }
 

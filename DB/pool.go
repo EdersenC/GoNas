@@ -18,7 +18,7 @@ func (db *DB) createPoolTable(ctx context.Context) error {
 	poolTypes := []string{"raid0", "raid1", "raid5", "raid6", "raid10"}
 
 	ddl := fmt.Sprintf(`
-CREATE TABLE IF NOT EXISTS pool (
+CREATE TABLE IF NOT EXISTS Pool (
   uuid        TEXT PRIMARY KEY,
   name        TEXT UNIQUE NOT NULL,
   mountPoint TEXT  NULL,
@@ -87,4 +87,60 @@ func (db *DB) PatchPool(ctx context.Context, poolUUID string, p PoolPatch) error
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+func (db *DB) QueryAllPools(ctx context.Context) (map[string]storage.Pool, error) {
+	const q = `
+SELECT uuid, name, mountPoint, mdDevice, status, poolType, createdAt
+FROM Pool
+ORDER BY createdAt DESC;
+`
+
+	rows, err := db.conn.QueryContext(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	pools := make(map[string]storage.Pool)
+
+	for rows.Next() {
+		var (
+			uuid       string
+			name       string
+			mountPoint sql.NullString
+			mdDevice   sql.NullString
+			status     string
+			poolType   string
+			createdAt  string
+		)
+
+		if err = rows.Scan(&uuid, &name, &mountPoint, &mdDevice, &status, &poolType, &createdAt); err != nil {
+			return nil, err
+		}
+
+		convertedType, err := storage.ParsePoolType(poolType)
+		if err != nil {
+			return nil, err
+		}
+
+		p := storage.Pool{
+			Uuid:          uuid,
+			Name:          name,
+			MdDevice:      mdDevice.String,
+			AdoptedDrives: make(map[string]*storage.AdoptedDrive),
+			Status:        storage.Status(status),
+			Type:          convertedType,
+			MountPoint:    mountPoint.String,
+			CreatedAt:     createdAt,
+		}
+
+		pools[uuid] = p
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return pools, nil
 }
