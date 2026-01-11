@@ -25,7 +25,7 @@ type PoolPatch struct {
 	Format string         `json:"format"`
 }
 
-func buildPoolPatch(pool *storage.Pool, patch *PoolPatch) (updatedPool *storage.Pool) {
+func applyPoolPatch(pool *storage.Pool, patch *PoolPatch) (updatedPool *storage.Pool) {
 	updatedPool = pool.Clone()
 
 	if patch == nil {
@@ -54,7 +54,7 @@ func (db *DB) PatchPoolMount(uuid, mount string) error {
 }
 
 func (db *DB) PatchPool(ctx context.Context, pool *storage.Pool, patch *PoolPatch) (*storage.Pool, error) {
-	updatedPool := buildPoolPatch(pool, patch)
+	updatedPool := applyPoolPatch(pool, patch)
 
 	// Build update map
 	updates := make(map[string]interface{})

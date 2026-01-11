@@ -58,11 +58,12 @@ func (p *PoolModel) FromStoragePool(pool *storage.Pool) {
 
 // DriveModel represents the Drive table in GORM
 type DriveModel struct {
-	Kind      string  `gorm:"primaryKey;not null;column:kind"`
-	Value     string  `gorm:"primaryKey;not null;column:value"`
-	UUID      string  `gorm:"unique;not null;column:uuid"`
-	PoolID    *string `gorm:"column:poolID"` // Use pointer to distinguish between empty string and NULL
-	CreatedAt string  `gorm:"not null;column:createdAt"`
+	Kind      string      `gorm:"primaryKey;not null;column:kind"`
+	Value     string      `gorm:"primaryKey;not null;column:value"`
+	UUID      string      `gorm:"unique;not null;column:uuid"`
+	PoolID    *string     `gorm:"column:poolID"` // Use pointer to distinguish between empty string and NULL
+	CreatedAt string      `gorm:"not null;column:createdAt"`
+	Pool      *PoolModel  `gorm:"foreignKey:PoolID;references:UUID;constraint:OnDelete:SET NULL;"`
 }
 
 // TableName sets the table name for GORM
@@ -86,7 +87,7 @@ func (d *DriveModel) ToAdoptedDrive() storage.AdoptedDrive {
 	}
 
 	adoptedDrive.SetUuid(d.UUID)
-	if d.PoolID != nil && *d.PoolID != "" {
+	if d.PoolID != nil {
 		adoptedDrive.SetPoolID(*d.PoolID)
 	}
 

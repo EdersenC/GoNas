@@ -59,29 +59,10 @@ func Init(path string) (*gorm.DB, error) {
 }
 
 func (db *DB) InitSchema(ctx context.Context) error {
-	// Manually create the Pool table first
-	if err := db.conn.WithContext(ctx).AutoMigrate(&PoolModel{}); err != nil {
+	// Use GORM AutoMigrate to create tables with foreign key constraints
+	// The Pool relationship in DriveModel will ensure the foreign key is created
+	if err := db.conn.WithContext(ctx).AutoMigrate(&PoolModel{}, &DriveModel{}); err != nil {
 		return err
-	}
-
-	// Then create the Drive table with foreign key
-	// We need to create it manually to ensure proper foreign key with ON DELETE SET NULL
-	createDriveTable := `
-		CREATE TABLE IF NOT EXISTS Drive (
-			kind TEXT NOT NULL,
-			value TEXT NOT NULL,
-			uuid TEXT NOT NULL UNIQUE,
-			poolID TEXT NULL,
-			createdAt TEXT NOT NULL,
-			PRIMARY KEY (kind, value),
-			FOREIGN KEY (poolID) REFERENCES Pool(uuid) ON DELETE SET NULL
-		)
-	`
-	if err := db.conn.WithContext(ctx).Exec(createDriveTable).Error; err != nil {
-		// Table might already exist, try AutoMigrate instead
-		if err := db.conn.WithContext(ctx).AutoMigrate(&DriveModel{}); err != nil {
-			return err
-		}
 	}
 
 	return nil
