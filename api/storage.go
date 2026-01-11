@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"goNAS/DB"
 	"goNAS/storage"
 	"net/http"
 
@@ -87,7 +88,7 @@ func createPool(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	pool, err := NAS.POOLS.NewPool(req.Name, &storage.Raid{Level: req.RaidLevel}, nil)
+	pool, err := NAS.POOLS.NewPool(req.Name, &storage.Raid{Level: req.RaidLevel}, "")
 	if err != nil {
 		NAS.poolError(err, c)
 		return
@@ -99,7 +100,7 @@ func createPool(c *gin.Context) {
 	}
 
 	if req.Build {
-		err = pool.Build(req.Format)
+		err = pool.Build()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -111,11 +112,31 @@ func createPool(c *gin.Context) {
 		NAS.poolError(err, c)
 		return
 	}
-	_ = NAS.RemoveAdoptedDrives(req.Drives, c)
+	_ = NAS.RemoveAdoptedDrives(req.Drives, c) // Clean up adopted drives after pool creation
 	SuccessResponse(c, pool.Uuid)
 }
 
-func deletePool(c *gin.Context) {}
+func deletePool(c *gin.Context) {
+	uuid := c.Param("uuid")
+	pool, err := NAS.POOLS.GetPool(uuid)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+	err = SERVER.Db.DeletePool(c, pool.Uuid)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+
+	err = NAS.deletePool(pool)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+
+	SuccessResponse(c, gin.H{"deleted": pool.Uuid})
+}
 
 func getPool(c *gin.Context) {
 	uuid := c.Param("uuid")
@@ -127,7 +148,36 @@ func getPool(c *gin.Context) {
 	SuccessResponse(c, pool)
 }
 
-func updatePool(c *gin.Context) {}
+func updatePool(c *gin.Context) {
+	uuid := c.Param("uuid")
+	pool, err := NAS.POOLS.GetPool(uuid)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+
+	var req *DB.PoolPatch
+
+	if err = c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err = NAS.ValidatePoolPatch(req); err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+	updatedPool, err := SERVER.Db.PatchPool(c, pool, req)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+	err = NAS.updatePool(updatedPool)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+	SuccessResponse(c, updatedPool)
+}
 
 func SuccessResponse(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, gin.H{

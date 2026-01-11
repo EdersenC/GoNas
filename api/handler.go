@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"goNAS/DB"
+	"goNAS/network"
 	"goNAS/storage"
 	"log"
 	"net/http"
@@ -75,6 +76,7 @@ type Nas struct {
 	POOLS         *storage.Pools
 	SystemDrives  map[string]*storage.DriveInfo
 	AdoptedDrives map[string]*storage.AdoptedDrive
+	Networks      map[string]*network.Interface
 }
 
 var NAS = &Nas{}
@@ -128,6 +130,33 @@ func (n *Nas) LoadPools(c context.Context) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (n *Nas) updatePool(pool *storage.Pool) error {
+	if _, exists := (*n.POOLS)[pool.Uuid]; !exists {
+		return errors.New("pool not found in memory")
+	}
+	(*n.POOLS)[pool.Uuid] = pool
+	return nil
+}
+
+func (n *Nas) deletePool(p *storage.Pool) error {
+	adoptedDrives := p.AdoptedDrives
+	for _, adopt := range adoptedDrives {
+		adopt.SetPoolID("")
+		n.AdoptedDrives[adopt.GetUuid()] = adopt
+	}
+	err := n.setOffline(p)
+	if err != nil {
+		return err
+	}
+
+	err = NAS.POOLS.DeletePool(p.Uuid)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -203,14 +232,16 @@ func (n *Nas) AreDrivesAlreadyInPool(d []string) (string, bool) {
 
 // RemoveAdoptedDrives removes an in mem adopted drive by its UUID.
 // Returns an error if the drive is not found or if it is currently in use by a pool.
-func (n *Nas) RemoveAdoptedDrives(uuid []string, c *gin.Context) error {
+func (n *Nas) RemoveAdoptedDrives(uuid []string, c *gin.Context) int {
+	removedCount := 0
 	for _, id := range uuid {
 		if _, exists := n.AdoptedDrives[id]; !exists {
-			return ErrDriveNotFound
+			continue
 		}
+		removedCount++
 		delete(n.AdoptedDrives, id)
 	}
-	return nil
+	return removedCount
 }
 
 // PopulatePool populates a storage pool with the specified drives ids.
@@ -254,4 +285,42 @@ func (n *Nas) AdoptDriveByKey(key string, c *gin.Context) (*storage.AdoptedDrive
 	}
 	n.AdoptedDrives[adoptedDrive.GetUuid()] = adoptedDrive
 	return adoptedDrive, nil
+}
+
+func (n *Nas) ValidatePoolPatch(patch *DB.PoolPatch) error {
+	if patch.Network != "" {
+		if _, exists := n.Networks[patch.Network]; !exists {
+			return errors.New("network not found")
+		}
+	}
+	if patch.Status != "" {
+		err := storage.ValidateStatus(patch.Status)
+		if err != nil {
+			return err
+		}
+	}
+
+	if patch.Format != "" {
+		err := storage.ValidatePoolFormat(patch.Format)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// setOffline sets the status of the pool to offline.
+// Todo: implement actual offline logic
+func (n *Nas) setOffline(pool *storage.Pool) error {
+	pool.SetStatus(storage.Offline)
+
+	return nil
+}
+
+func (n *Nas) GetNetwork(uuid string) (*network.Interface, error) {
+	if netIf, exists := n.Networks[uuid]; exists {
+		return netIf, nil
+	}
+	return nil, errors.New("network not found")
 }

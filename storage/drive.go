@@ -57,4 +57,4 @@ func (a *AdoptedDrive) GetUuid() string   { return a.uuid }
 func (a *AdoptedDrive) SetUuid(id string) { a.uuid = id; a.Drive.SetUuid(id) }
 
 func (a *AdoptedDrive) GetPoolID() string   { return a.poolID }
-func (a *AdoptedDrive) SetPoolID(id string) { a.poolID = id; a.poolID = id }
+func (a *AdoptedDrive) SetPoolID(id string) { a.poolID = id }

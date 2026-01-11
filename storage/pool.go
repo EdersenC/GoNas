@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"goNAS/helper"
-	"goNAS/network"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -18,18 +18,26 @@ type Pool struct {
 	Name              string
 	Uuid              string
 	Status            Status
-	AdoptedDrives     map[string]*AdoptedDrive
 	MountPoint        string
 	MdDevice          string
 	Type              PoolType
 	TotalCapacity     uint64
 	AvailableCapacity uint64
-	Network           *network.Interface
+	Format            string
+	Network           string
 	CreatedAt         string
+	AdoptedDrives     map[string]*AdoptedDrive
+}
+
+func ShortUuid(length int, uuid string) (string, error) {
+	if len(uuid) < length {
+		return "", errors.New("uuid length is less than requested length")
+	}
+	return uuid[:length], nil
 }
 
 type PoolType interface {
-	Build(*Pool, string) error
+	Build(*Pool) error
 	Value() string
 }
 
@@ -62,7 +70,7 @@ func (r *Raid) Value() string {
 	return fmt.Sprintf("raid%d", r.Level)
 }
 
-func (r *Raid) Build(p *Pool, format string) error {
+func (r *Raid) Build(p *Pool) error {
 	if err := helper.CheckRaidLevel(r.Level, len(p.AdoptedDrives)); err != nil {
 		return err
 	}
@@ -88,16 +96,16 @@ func (r *Raid) Build(p *Pool, format string) error {
 	}
 
 	// Format the RAID device
-	if err = helper.FormatPool(format, p.MdDevice); err != nil {
+	if err = helper.FormatPool(p.Format, p.MdDevice); err != nil {
 		return err
 	}
 
 	// Create and mount the mount point
-	if err = helper.CreateMountPoint(p.Name, p.MdDevice); err != nil {
+	if err = helper.CreateMountPoint(p.Uuid, p.MdDevice); err != nil {
 		return err
 	}
 
-	p.MountPoint = fmt.Sprintf("%s/%s", helper.DefaultMountPoint, p.Name)
+	p.MountPoint = fmt.Sprintf("%s/%s", helper.DefaultMountPoint, p.Uuid)
 	p.Status = Healthy
 	return nil
 }
@@ -162,16 +170,58 @@ func (p *Pools) DeletePool(uuid string) error {
 	if err != nil {
 		return err
 	}
-	if err = pool.Delete(); err != nil {
-		return err
+
+	if pool.MountPoint != "" {
+		if err = pool.Delete(); err != nil {
+			return err
+		}
 	}
 
 	delete(*p, uuid)
 	return nil
 }
 
+func (s Status) ToLower() Status {
+	return Status(strings.ToLower(string(s)))
+}
+func ValidateStatus(status Status) error {
+	switch status.ToLower() {
+	case Healthy.ToLower(), Degraded.ToLower(), Offline.ToLower():
+		return nil
+	default:
+		return errors.New("invalid status")
+	}
+}
+
+func ValidatePoolFormat(format string) error {
+	supportedFormats := []string{"ext4", "xfs", "btrfs"}
+	for _, f := range supportedFormats {
+		if format == f {
+			return nil
+		}
+	}
+	return errors.New("unsupported pool format")
+}
+
+func (p *Pool) SetName(name string) {
+	p.Name = name
+}
+func (p *Pool) SetStatus(status Status) {
+	p.Status = status
+}
+
+func (p *Pool) SetFormat(format string) {
+	p.Format = format
+}
+
+func (p *Pool) SetNetwork(network string) {
+	p.Network = network
+}
+
+const SHORTUUIDLEN = 16
+
 // NewPool creates a new pool instance.
-func NewPool(name string, poolType PoolType, network *network.Interface, drives ...*DriveInfo) (*Pool, error) {
+func NewPool(name string, poolType PoolType, network string, drives ...*DriveInfo) (*Pool, error) {
 	poolMap := make(map[string]*AdoptedDrive)
 	poolId := uuid.New().String()
 	for i, _ := range drives {
@@ -179,12 +229,16 @@ func NewPool(name string, poolType PoolType, network *network.Interface, drives 
 		adoptedDrive.SetPoolID(poolId)
 		poolMap[adoptedDrive.GetUuid()] = adoptedDrive
 	}
+	shortID, err := ShortUuid(SHORTUUIDLEN, poolId)
+	if err != nil {
+		return nil, err
+	}
 	pool := Pool{
 		Name:          name,
 		Uuid:          poolId,
 		Status:        Offline,
 		AdoptedDrives: poolMap,
-		MdDevice:      "/dev/md/" + name,
+		MdDevice:      "/dev/md/" + shortID,
 		Type:          poolType,
 		Network:       network,
 		CreatedAt:     CreationTime(),
@@ -193,12 +247,32 @@ func NewPool(name string, poolType PoolType, network *network.Interface, drives 
 	pool.CalculateAvailableCapacity()
 	return &pool, nil
 }
-func (p *Pools) NewPool(name string, poolType PoolType, network *network.Interface, drives ...*DriveInfo) (*Pool, error) {
+
+// Clone creates a shadow copy of the pool.
+func (p *Pool) Clone() *Pool {
+	return &Pool{
+		Name:              p.Name,
+		Uuid:              p.Uuid,
+		Status:            p.Status,
+		AdoptedDrives:     p.AdoptedDrives,
+		MountPoint:        p.MountPoint,
+		MdDevice:          p.MdDevice,
+		Type:              p.Type,
+		TotalCapacity:     p.TotalCapacity,
+		AvailableCapacity: p.AvailableCapacity,
+		Format:            p.Format,
+		Network:           p.Network,
+		CreatedAt:         p.CreatedAt,
+	}
+}
+
+// NewPool creates a new pool instance.
+func (p *Pools) NewPool(name string, poolType PoolType, network string, drives ...*DriveInfo) (*Pool, error) {
 	return NewPool(name, poolType, network, drives...)
 }
 
 // CreateAndAddPool creates a new pool and adds it to the Pools collection.
-func (p *Pools) CreateAndAddPool(name string, poolType PoolType, network *network.Interface, drives ...*DriveInfo) (*Pool, error) {
+func (p *Pools) CreateAndAddPool(name string, poolType PoolType, network string, drives ...*DriveInfo) (*Pool, error) {
 	pool, err := p.NewPool(name, poolType, network, drives...)
 	if err != nil {
 		return nil, err
@@ -220,8 +294,8 @@ func (p *Pools) AddPool(pool *Pool) error {
 }
 
 // Build constructs the storage pool based on its type and format.
-func (p *Pool) Build(format string) error {
-	return p.Type.Build(p, format)
+func (p *Pool) Build() error {
+	return p.Type.Build(p)
 }
 
 func (p *Pool) AddDrives(drive ...*DriveInfo) {

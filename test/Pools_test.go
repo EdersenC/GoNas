@@ -14,7 +14,7 @@ var drives = []*storage.DriveInfo{
 
 func TestPoolSize(t *testing.T) {
 	var pools = storage.Pools{}
-	testPool, _ := pools.NewPool("TestPool", storage.Standard, nil, drives...)
+	testPool, _ := pools.NewPool("TestPool", storage.Standard, "", drives...)
 	expectedCapacity := 2000 * helper.Gigabyte
 	expectedAvailable := 1200 * helper.Megabyte
 	if testPool.TotalCapacity != expectedCapacity {
@@ -29,7 +29,7 @@ func TestGetAndRemoveDrive(t *testing.T) {
 	var pools = storage.Pools{}
 	var err error
 	newDrive := &storage.DriveInfo{Name: "sdd", SizeBytes: 2000 * helper.Gigabyte, FsAvail: 1500 * helper.Megabyte, Type: "HDD", Model: "Seagate ST2000DM008"}
-	testPool, _ := pools.NewPool("TestPool", storage.Standard, nil, newDrive)
+	testPool, _ := pools.NewPool("TestPool", storage.Standard, "", newDrive)
 
 	testPool.AddDrives(newDrive)
 	myDrives := testPool.GetDrives(newDrive.Uuid)
@@ -49,7 +49,7 @@ func TestGetAndRemoveDrive(t *testing.T) {
 func TestGetAndDeletePool(t *testing.T) {
 	var pools = storage.Pools{}
 	var err error
-	testPool, _ := pools.NewPool("TestPool", storage.Standard, nil, drives...)
+	testPool, _ := pools.NewPool("TestPool", storage.Standard, "", drives...)
 	_, err = pools.GetPool(testPool.Uuid)
 	if err != nil {
 		t.Errorf("Expected no error when getting existing pool, got %v", err)

@@ -39,16 +39,16 @@ func run(server *api.Server) error {
 	if err := helper.CreateLoopDevice("100G", 4); err != nil {
 		return err
 	}
-	pool, err := createSystemPool(server.Nas.POOLS, 5)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		fmt.Println("Deleting pool:", pool.Name)
-		pool.Status = storage.Offline
-		_ = pool.Delete()
-		displayDrives()
-	}()
+	//pool, err := createSystemPool(server.Nas.POOLS, 5)
+	//if err != nil {
+	//	return err
+	//}
+	//defer func() {
+	//	fmt.Println("Deleting pool:", pool.Name)
+	//	pool.Status = storage.Offline
+	//	_ = pool.Delete()
+	//	displayDrives()
+	//}()
 
 	go runServer(server)
 	sigCh := make(chan os.Signal, 4)
@@ -95,11 +95,12 @@ func graceFull(server *api.Server, ctx context.Context) {
 func createSystemPool(pools *storage.Pools, level int) (*storage.Pool, error) {
 	drives := storage.GetSystemDrives("l")
 	raid := storage.Raid{Level: level} //Todo Raid 1 needs to be fixed
-	myPool, err := pools.CreateAndAddPool("DezNuts", &raid, nil, drives...)
+	myPool, err := pools.CreateAndAddPool("DezNuts", &raid, "", drives...)
 	if err != nil {
 		return nil, err
 	}
-	err = myPool.Build("mkfs.ext4")
+	myPool.SetFormat("mkfs.ext4")
+	err = myPool.Build()
 	if err != nil {
 		return nil, err
 	}

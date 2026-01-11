@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS Pool (
   mdDevice   TEXT  UNIQUE,
   status      TEXT NOT NULL CHECK (status IN (%s)),
   poolType   TEXT NOT NULL CHECK (poolType IN (%s)),
+  format    Text Null,
+  network    Text Null,
   createdAt  TEXT NOT NULL
 );
 `, quoteList(statuses), quoteList(poolTypes))
@@ -35,12 +37,19 @@ CREATE TABLE IF NOT EXISTS Pool (
 
 func (db *DB) InsertPool(ctx context.Context, pool *storage.Pool, createdAt string) error {
 	const q = `
-INSERT INTO Pool (uuid, name, mdDevice, status, poolType, createdAt)
+INSERT INTO Pool (uuid, name, mdDevice, status, poolType, network, format,createdAt)
 VALUES
-  (?, ?, ?, ?, ?, ?);
+  (?, ?, ?, ?, ?, ?, ?,?);
 `
 	_, err := db.conn.ExecContext(ctx, q,
-		pool.Uuid, pool.Name, pool.MdDevice, pool.Status, pool.Type.Value(), createdAt,
+		pool.Uuid,
+		pool.Name,
+		pool.MdDevice,
+		pool.Status.ToLower(),
+		pool.Type.Value(),
+		pool.Format,
+		pool.Network,
+		createdAt,
 	)
 	return err
 }
@@ -55,43 +64,62 @@ WHERE uuid = ?;
 }
 
 type PoolPatch struct {
-	Status     *string
-	MountPoint *string
+	Name    string         `json:"name"`
+	Status  storage.Status `json:"status"`
+	Format  string         `json:"format"`
+	Network string         `json:"network"`
 }
 
-func (db *DB) PatchPool(ctx context.Context, poolUUID string, p PoolPatch) error {
-	set := make([]string, 0, 2)
-	args := make([]any, 0, 3)
+func (db *DB) PatchPool(ctx context.Context, pool *storage.Pool, patch *PoolPatch) (*storage.Pool, error) {
+	set := make([]string, 0, 4)
+	args := make([]any, 0, 5)
+	updatedPool := pool.Clone()
 
-	if p.Status != nil {
+	if patch.Name != "" {
+		set = append(set, "Name = ?")
+		args = append(args, patch.Name)
+		updatedPool.SetName(patch.Name)
+	}
+
+	if &patch.Status != nil {
 		set = append(set, "status = ?")
-		args = append(args, *p.Status)
+		args = append(args, patch.Status.ToLower())
+		updatedPool.SetStatus(patch.Status.ToLower())
 	}
-	if p.MountPoint != nil {
-		set = append(set, "mount_point = ?")
-		args = append(args, *p.MountPoint)
+
+	if patch.Format != "" {
+		set = append(set, "format = ?")
+		args = append(args, patch.Format)
+		updatedPool.SetFormat(patch.Format)
 	}
+
+	if patch.Network != "" {
+		set = append(set, "network = ?")
+		args = append(args, patch.Network)
+	}
+
 	if len(set) == 0 {
-		return nil
+		return pool, nil
 	}
 
-	args = append(args, poolUUID)
+	args = append(args, pool.Uuid)
 
-	q := "UPDATE pools SET " + strings.Join(set, ", ") + " WHERE uuid = ?"
+	q := "UPDATE Pool SET " + strings.Join(set, ", ") + " WHERE uuid = ?"
 	res, err := db.conn.ExecContext(ctx, q, args...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return sql.ErrNoRows
+		return nil, sql.ErrNoRows
 	}
-	return nil
+
+	return updatedPool, nil
 }
 
 func (db *DB) QueryAllPools(ctx context.Context) (map[string]storage.Pool, error) {
 	const q = `
-SELECT uuid, name, mountPoint, mdDevice, status, poolType, createdAt
+SELECT uuid, name, mountPoint, mdDevice, status, poolType, format, network, createdAt
 FROM Pool
 ORDER BY createdAt DESC;
 `
@@ -112,10 +140,21 @@ ORDER BY createdAt DESC;
 			mdDevice   sql.NullString
 			status     string
 			poolType   string
+			format     sql.NullString
+			network    sql.NullString
 			createdAt  string
 		)
 
-		if err = rows.Scan(&uuid, &name, &mountPoint, &mdDevice, &status, &poolType, &createdAt); err != nil {
+		if err = rows.Scan(&uuid,
+			&name,
+			&mountPoint,
+			&mdDevice,
+			&status,
+			&poolType,
+			&format,
+			&network,
+			&createdAt,
+		); err != nil {
 			return nil, err
 		}
 
@@ -132,6 +171,8 @@ ORDER BY createdAt DESC;
 			Status:        storage.Status(status),
 			Type:          convertedType,
 			MountPoint:    mountPoint.String,
+			Format:        format.String,
+			Network:       network.String,
 			CreatedAt:     createdAt,
 		}
 

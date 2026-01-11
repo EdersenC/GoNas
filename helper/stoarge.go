@@ -146,9 +146,10 @@ func BuildMadam(args []string) error {
 	return nil
 }
 
-func CreateMountPoint(name string, mdDevice string) error {
+// CreateMountPoint creates a mount point directory and mounts the given mdDevice there.
+func CreateMountPoint(uuid string, mdDevice string) error {
 	// Create and mount directory
-	mountPoint := fmt.Sprintf("%s/%s", DefaultMountPoint, name)
+	mountPoint := fmt.Sprintf("%s/%s", DefaultMountPoint, uuid)
 	if err := os.MkdirAll(mountPoint, 0755); err != nil {
 		return fmt.Errorf("failed to create mount directory: %w", err)
 	}
@@ -159,6 +160,7 @@ func CreateMountPoint(name string, mdDevice string) error {
 	return nil
 }
 
+// FormatPool formats the given mdDevice with the specified format command.
 func FormatPool(format string, mdDevice string) error {
 	if err := exec.Command(format, "-F", mdDevice).Run(); err != nil {
 		return fmt.Errorf("failed to format RAID device: %w", err)

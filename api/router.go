@@ -14,7 +14,7 @@ func RegisterPools(r *gin.RouterGroup) {
 	r.GET("/pools", listPools)
 	r.POST("/pool", createPool)
 	r.GET("/pool/:uuid", getPool)
-	r.PUT("/pool/:uuid", updatePool)
+	r.PATCH("/pool/:uuid", updatePool)
 	r.DELETE("/pool/:uuid", deletePool)
 }
 
