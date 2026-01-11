@@ -5,6 +5,7 @@ import (
 	"goNAS/helper"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -109,6 +110,8 @@ func (r *Raid) Build(p *Pool) error {
 
 	p.MountPoint = fmt.Sprintf("%s/%s", helper.DefaultMountPoint, p.Uuid)
 	p.Status = Healthy
+	p.CalculateTotalCapacity()
+	p.CalculateAvailableCapacity()
 	return nil
 }
 
@@ -244,8 +247,6 @@ func NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo
 		Format:        format,
 		CreatedAt:     CreationTime(),
 	}
-	pool.CalculateTotalCapacity()
-	pool.CalculateAvailableCapacity()
 	return &pool, nil
 }
 
@@ -340,18 +341,54 @@ func (p *Pool) RemoveDrives(uuids ...string) error {
 	return nil
 }
 
+func GetPoolCapacity(device string) (total uint64, avail uint64, err error) {
+	cmd := exec.Command("df", "-B1", "--output=source,size,used,avail,pcent", device)
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, 0, fmt.Errorf("df command failed: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) < 2 {
+		return 0, 0, fmt.Errorf("unexpected df output: %q", string(out))
+	}
+
+	fields := strings.Fields(lines[1])
+	// expected: source size used avail pcent
+	if len(fields) < 4 {
+		return 0, 0, fmt.Errorf("unexpected df fields: %v", fields)
+	}
+
+	sizeStr := fields[1]
+	availStr := fields[3]
+
+	total, err = strconv.ParseUint(sizeStr, 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("parsing total size: %w", err)
+	}
+
+	avail, err = strconv.ParseUint(availStr, 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("parsing avail size: %w", err)
+	}
+
+	return total, avail, nil
+}
+
 func (p *Pool) CalculateTotalCapacity() {
-	var total uint64
-	for _, d := range p.AdoptedDrives {
-		total += d.Drive.SizeBytes
+	total, _, err := GetPoolCapacity(p.MdDevice)
+	if err != nil {
+		p.TotalCapacity = 0
+		return
 	}
 	p.TotalCapacity = total
 }
 
 func (p *Pool) CalculateAvailableCapacity() {
-	var available uint64
-	for _, d := range p.AdoptedDrives {
-		available += d.Drive.FsAvail
+	_, avail, err := GetPoolCapacity(p.MdDevice)
+	if err != nil {
+		p.AvailableCapacity = 0
+		return
 	}
-	p.AvailableCapacity = available
+	p.AvailableCapacity = avail
 }
