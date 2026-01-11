@@ -61,7 +61,7 @@ type DriveModel struct {
 	Kind      string      `gorm:"primaryKey;not null;column:kind"`
 	Value     string      `gorm:"primaryKey;not null;column:value"`
 	UUID      string      `gorm:"unique;not null;column:uuid"`
-	PoolID    *string     `gorm:"column:poolID"` // Use pointer to distinguish between empty string and NULL
+	PoolID    *string     `gorm:"column:poolID"` // Pointer handles NULL (nil = NULL in DB)
 	CreatedAt string      `gorm:"not null;column:createdAt"`
 	Pool      *PoolModel  `gorm:"foreignKey:PoolID;references:UUID;constraint:OnDelete:SET NULL;"`
 }

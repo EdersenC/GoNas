@@ -3,7 +3,6 @@ package DB
 import (
 	"context"
 	"goNAS/storage"
-	"os"
 	"testing"
 	"time"
 
@@ -11,9 +10,9 @@ import (
 )
 
 func TestDatabaseOperations(t *testing.T) {
-	// Create a temporary database file
-	tmpFile := "/tmp/test_gonas_" + uuid.New().String() + ".db"
-	defer os.Remove(tmpFile)
+	// Create a temporary database file using t.TempDir() for automatic cleanup
+	tmpDir := t.TempDir()
+	tmpFile := tmpDir + "/test_gonas.db"
 
 	// Initialize database
 	db := NewDB(tmpFile)
