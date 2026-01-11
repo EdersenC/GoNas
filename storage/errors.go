@@ -26,6 +26,12 @@ var (
 	ErrPoolNotInMemory     = errors.New("pool not found in memory")
 )
 
+// Pool operation errors
+var (
+	ErrUnmountFailed   = errors.New("failed to unmount pool")
+	ErrRemoveDirFailed = errors.New("failed to remove mount directory")
+)
+
 // Generic errors
 var (
 	ErrNotFound = errors.New("resource not found")

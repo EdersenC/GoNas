@@ -23,6 +23,22 @@ var (
 	ErrUnsupportedRaidLevel  = errors.New("unsupported raid level")
 )
 
+// Infrastructure/Installation errors
+var (
+	ErrLoopDeviceCreateFailed = errors.New("failed to create loop devices")
+	ErrNoPackageManager       = errors.New("no supported package manager found (apt, dnf, yum, pacman)")
+	ErrMdadmInstallFailed     = errors.New("failed to install mdadm")
+	ErrMdadmVerifyFailed      = errors.New("mdadm installation appears to have failed")
+)
+
+// RAID build/format errors
+var (
+	ErrRaidBuildFailed      = errors.New("failed to create RAID array")
+	ErrMountDirCreateFailed = errors.New("failed to create mount directory")
+	ErrMountFailed          = errors.New("failed to mount RAID device")
+	ErrFormatFailed         = errors.New("failed to format RAID device")
+)
+
 func Contains(list []string, val string) bool {
 	for _, v := range list {
 		if strings.Contains(val, v) {
@@ -54,7 +70,7 @@ func CreateLoopDevice(size string, amount int) error {
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to create Loop devices with size %s: %w", size, err)
+		return fmt.Errorf("%w with size %s: %v", ErrLoopDeviceCreateFailed, size, err)
 	}
 	return nil
 }
@@ -85,7 +101,7 @@ func installMdadm() error {
 		pm = "pacman"
 		installCmd = "pacman -Sy --noconfirm mdadm"
 	default:
-		return fmt.Errorf("no supported package manager found (apt, dnf, yum, pacman)")
+		return ErrNoPackageManager
 	}
 
 	fmt.Printf("Installing mdadm using %s...\n", pm)
@@ -94,12 +110,12 @@ func installMdadm() error {
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to install mdadm with %s: %w", pm, err)
+		return fmt.Errorf("%w with %s: %v", ErrMdadmInstallFailed, pm, err)
 	}
 
 	// Verify installation succeeded
 	if _, err := exec.LookPath("mdadm"); err != nil {
-		return fmt.Errorf("mdadm installation appears to have failed")
+		return ErrMdadmVerifyFailed
 	}
 
 	fmt.Println("mdadm successfully installed ✅")
@@ -151,7 +167,7 @@ func BuildMadam(args []string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to create RAID array: %w", err)
+		return fmt.Errorf("%w: %v", ErrRaidBuildFailed, err)
 	}
 	return nil
 }
@@ -161,11 +177,11 @@ func CreateMountPoint(uuid string, mdDevice string) error {
 	// Create and mount directory
 	mountPoint := fmt.Sprintf("%s/%s", DefaultMountPoint, uuid)
 	if err := os.MkdirAll(mountPoint, 0755); err != nil {
-		return fmt.Errorf("failed to create mount directory: %w", err)
+		return fmt.Errorf("%w: %v", ErrMountDirCreateFailed, err)
 	}
 
 	if err := exec.Command("mount", mdDevice, mountPoint).Run(); err != nil {
-		return fmt.Errorf("failed to mount RAID device: %w", err)
+		return fmt.Errorf("%w: %v", ErrMountFailed, err)
 	}
 	return nil
 }
@@ -173,7 +189,7 @@ func CreateMountPoint(uuid string, mdDevice string) error {
 // FormatPool formats the given mdDevice with the specified format command.
 func FormatPool(format string, mdDevice string) error {
 	if err := exec.Command("mkfs."+format, "-F", mdDevice).Run(); err != nil {
-		return fmt.Errorf("failed to format RAID device: %w", err)
+		return fmt.Errorf("%w: %v", ErrFormatFailed, err)
 	}
 	return nil
 }

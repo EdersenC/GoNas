@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"goNAS/DB"
 	"goNAS/helper"
 	"goNAS/storage"
@@ -11,36 +12,50 @@ import (
 
 func (n *Nas) poolError(err error, c *gin.Context) {
 	message := gin.H{"error": err.Error()}
-	switch err {
-	case storage.ErrPoolNotFound:
-		c.JSON(http.StatusNotFound, message)
-	case storage.ErrPoolInUse:
-		c.JSON(http.StatusConflict, message)
-	case storage.ErrDriveNotFoundOrInUse:
-		c.JSON(http.StatusConflict, message)
-	case storage.ErrInsufficientDrives:
-		c.JSON(http.StatusBadRequest, message)
-	case storage.ErrPoolAlreadyExists:
-		c.JSON(http.StatusConflict, message)
-	case storage.ErrPoolNotOffline:
-		c.JSON(http.StatusConflict, message)
-	case storage.ErrPoolFormatRequired:
-		c.JSON(http.StatusBadRequest, message)
-	case storage.ErrInvalidPoolType:
-		c.JSON(http.StatusBadRequest, message)
-	case storage.ErrUnsupportedFormat:
-		c.JSON(http.StatusBadRequest, message)
-	case storage.ErrInvalidStatus:
-		c.JSON(http.StatusBadRequest, message)
-	case helper.ErrRaid0RequiresDrives, helper.ErrRaid1RequiresDrives, helper.ErrRaid5RequiresDrives,
-		helper.ErrRaid6RequiresDrives, helper.ErrRaid10RequiresDrives:
-		c.JSON(http.StatusBadRequest, message)
-	case helper.ErrUnsupportedRaidLevel:
-		c.JSON(http.StatusBadRequest, message)
-	case storage.ErrPoolNotInMemory:
-		c.JSON(http.StatusNotFound, message)
+	
+	// Check wrapped errors first using errors.Is
+	switch {
+	case errors.Is(err, storage.ErrUnmountFailed), errors.Is(err, storage.ErrRemoveDirFailed):
+		c.JSON(http.StatusInternalServerError, message)
+	case errors.Is(err, helper.ErrRaidBuildFailed), errors.Is(err, helper.ErrMountDirCreateFailed), 
+		errors.Is(err, helper.ErrMountFailed), errors.Is(err, helper.ErrFormatFailed):
+		c.JSON(http.StatusInternalServerError, message)
+	case errors.Is(err, helper.ErrLoopDeviceCreateFailed), errors.Is(err, helper.ErrNoPackageManager), 
+		errors.Is(err, helper.ErrMdadmInstallFailed), errors.Is(err, helper.ErrMdadmVerifyFailed):
+		c.JSON(http.StatusInternalServerError, message)
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
+		// Check direct errors using switch
+		switch err {
+		case storage.ErrPoolNotFound:
+			c.JSON(http.StatusNotFound, message)
+		case storage.ErrPoolInUse:
+			c.JSON(http.StatusConflict, message)
+		case storage.ErrDriveNotFoundOrInUse:
+			c.JSON(http.StatusConflict, message)
+		case storage.ErrInsufficientDrives:
+			c.JSON(http.StatusBadRequest, message)
+		case storage.ErrPoolAlreadyExists:
+			c.JSON(http.StatusConflict, message)
+		case storage.ErrPoolNotOffline:
+			c.JSON(http.StatusConflict, message)
+		case storage.ErrPoolFormatRequired:
+			c.JSON(http.StatusBadRequest, message)
+		case storage.ErrInvalidPoolType:
+			c.JSON(http.StatusBadRequest, message)
+		case storage.ErrUnsupportedFormat:
+			c.JSON(http.StatusBadRequest, message)
+		case storage.ErrInvalidStatus:
+			c.JSON(http.StatusBadRequest, message)
+		case helper.ErrRaid0RequiresDrives, helper.ErrRaid1RequiresDrives, helper.ErrRaid5RequiresDrives,
+			helper.ErrRaid6RequiresDrives, helper.ErrRaid10RequiresDrives:
+			c.JSON(http.StatusBadRequest, message)
+		case helper.ErrUnsupportedRaidLevel:
+			c.JSON(http.StatusBadRequest, message)
+		case storage.ErrPoolNotInMemory:
+			c.JSON(http.StatusNotFound, message)
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
+		}
 	}
 }
 

@@ -130,10 +130,10 @@ func (p *Pools) GetPool(uuid string) (*Pool, error) {
 
 func (p *Pool) UnmountDrive() error {
 	if err := exec.Command("sudo", "umount", p.MountPoint).Run(); err != nil {
-		return fmt.Errorf("failed to unmount pool: %w", err)
+		return fmt.Errorf("%w: %v", ErrUnmountFailed, err)
 	}
 	if err := exec.Command("sudo", "rmdir", p.MountPoint).Run(); err != nil {
-		return fmt.Errorf("failed to remove dir: %w", err)
+		return fmt.Errorf("%w: %v", ErrRemoveDirFailed, err)
 	}
 	return nil
 }
