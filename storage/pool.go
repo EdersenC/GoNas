@@ -10,6 +10,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// ============================================================================
+// Constants and Type Definitions
+// ============================================================================
+
+const SHORTUUIDLEN = 16
+
 var Mirrored PoolType
 var Standard PoolType
 
@@ -27,42 +33,26 @@ type Pool struct {
 	AdoptedDrives     map[string]*AdoptedDrive
 }
 
-func ShortUuid(length int, uuid string) (string, error) {
-	if len(uuid) < length {
-		return "", ErrUuidTooShort
-	}
-	return uuid[:length], nil
-}
-
 type PoolType interface {
 	Build(*Pool) error
 	Value() string
 }
 
-func ParsePoolType(value string) (PoolType, error) {
-	switch value {
-	case "standard":
-		return Standard, nil
-	case "mirrored":
-		return Mirrored, nil
-	case "raid0":
-		return &Raid{Level: 0}, nil
-	case "raid1":
-		return &Raid{Level: 1}, nil
-	case "raid5":
-		return &Raid{Level: 5}, nil
-	case "raid6":
-		return &Raid{Level: 6}, nil
-	case "raid10":
-		return &Raid{Level: 10}, nil
-	default:
-		return nil, ErrInvalidPoolType
-	}
-}
-
 type Raid struct {
 	Level int
 }
+
+type Status string
+
+var Healthy Status = "healthy"
+var Degraded Status = "degraded"
+var Offline Status = "offline"
+
+type Pools map[string]*Pool
+
+// ============================================================================
+// PoolType Interface Implementations
+// ============================================================================
 
 func (r *Raid) Value() string {
 	return fmt.Sprintf("raid%d", r.Level)
@@ -112,13 +102,17 @@ func (r *Raid) Build(p *Pool) error {
 	return nil
 }
 
-type Status string
+// ============================================================================
+// Status Type Methods
+// ============================================================================
 
-var Healthy Status = "healthy"
-var Degraded Status = "degraded"
-var Offline Status = "offline"
+func (s Status) ToLower() Status {
+	return Status(strings.ToLower(string(s)))
+}
 
-type Pools map[string]*Pool
+// ============================================================================
+// Pools Collection Methods
+// ============================================================================
 
 func (p *Pools) GetPool(uuid string) (*Pool, error) {
 	pool, exists := (*p)[uuid]
@@ -128,14 +122,84 @@ func (p *Pools) GetPool(uuid string) (*Pool, error) {
 	return pool, nil
 }
 
-func (p *Pool) UnmountDrive() error {
-	if err := exec.Command("sudo", "umount", p.MountPoint).Run(); err != nil {
-		return fmt.Errorf("failed to unmount pool: %w", err)
+// AddPool adds a new pool to the Pools collection.
+func (p *Pools) AddPool(pool *Pool) error {
+	if _, exists := (*p)[pool.Uuid]; exists {
+		return ErrPoolAlreadyExists
 	}
-	if err := exec.Command("sudo", "rmdir", p.MountPoint).Run(); err != nil {
-		return fmt.Errorf("failed to remove dir: %w", err)
-	}
+	(*p)[pool.Uuid] = pool
 	return nil
+}
+
+func (p *Pools) DeletePool(uuid string) error {
+	pool, err := p.GetPool(uuid)
+	if err != nil {
+		return err
+	}
+
+	if pool.MountPoint != "" {
+		if err = pool.Delete(); err != nil {
+			return err
+		}
+	}
+
+	delete(*p, uuid)
+	return nil
+}
+
+// NewPool creates a new pool instance.
+func (p *Pools) NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
+	return NewPool(name, poolType, format, drives...)
+}
+
+// CreateAndAddPool creates a new pool and adds it to the Pools collection.
+func (p *Pools) CreateAndAddPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
+	pool, err := p.NewPool(name, poolType, format, drives...)
+	if err != nil {
+		return nil, err
+	}
+	err = p.AddPool(pool)
+	if err != nil {
+		return nil, err
+	}
+	return pool, nil
+}
+
+// ============================================================================
+// Pool Lifecycle Methods
+// ============================================================================
+
+// NewPool creates a new pool instance.
+func NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
+	poolMap := make(map[string]*AdoptedDrive)
+	poolId := uuid.New().String()
+	for i := range drives {
+		adoptedDrive := NewAdoptedDrive(drives[i])
+		adoptedDrive.SetPoolID(poolId)
+		poolMap[adoptedDrive.GetUuid()] = adoptedDrive
+	}
+	shortID, err := ShortUuid(SHORTUUIDLEN, poolId)
+	if err != nil {
+		return nil, err
+	}
+	pool := Pool{
+		Name:          name,
+		Uuid:          poolId,
+		Status:        Offline,
+		AdoptedDrives: poolMap,
+		MdDevice:      "/dev/md/" + shortID,
+		Type:          poolType,
+		Format:        format,
+		CreatedAt:     CreationTime(),
+	}
+	pool.CalculateTotalCapacity()
+	pool.CalculateAvailableCapacity()
+	return &pool, nil
+}
+
+// Build constructs the storage pool based on its type and format.
+func (p *Pool) Build() error {
+	return p.Type.Build(p)
 }
 
 func (p *Pool) Delete() error {
@@ -170,84 +234,9 @@ func (p *Pool) Delete() error {
 	return nil
 }
 
-func (p *Pools) DeletePool(uuid string) error {
-	pool, err := p.GetPool(uuid)
-	if err != nil {
-		return err
-	}
-
-	if pool.MountPoint != "" {
-		if err = pool.Delete(); err != nil {
-			return err
-		}
-	}
-
-	delete(*p, uuid)
-	return nil
-}
-
-func (s Status) ToLower() Status {
-	return Status(strings.ToLower(string(s)))
-}
-func ValidateStatus(status Status) error {
-	switch status.ToLower() {
-	case Healthy.ToLower(), Degraded.ToLower(), Offline.ToLower():
-		return nil
-	default:
-		return ErrInvalidStatus
-	}
-}
-
-func ValidatePoolFormat(format string) error {
-	supportedFormats := []string{"ext4", "xfs", "btrfs"}
-	for _, f := range supportedFormats {
-		if format == f {
-			return nil
-		}
-	}
-	return ErrUnsupportedFormat
-}
-
-func (p *Pool) SetName(name string) {
-	p.Name = name
-}
-func (p *Pool) SetStatus(status Status) {
-	p.Status = status
-}
-
-func (p *Pool) SetFormat(format string) {
-	p.Format = format
-}
-
-const SHORTUUIDLEN = 16
-
-// NewPool creates a new pool instance.
-func NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
-	poolMap := make(map[string]*AdoptedDrive)
-	poolId := uuid.New().String()
-	for i := range drives {
-		adoptedDrive := NewAdoptedDrive(drives[i])
-		adoptedDrive.SetPoolID(poolId)
-		poolMap[adoptedDrive.GetUuid()] = adoptedDrive
-	}
-	shortID, err := ShortUuid(SHORTUUIDLEN, poolId)
-	if err != nil {
-		return nil, err
-	}
-	pool := Pool{
-		Name:          name,
-		Uuid:          poolId,
-		Status:        Offline,
-		AdoptedDrives: poolMap,
-		MdDevice:      "/dev/md/" + shortID,
-		Type:          poolType,
-		Format:        format,
-		CreatedAt:     CreationTime(),
-	}
-	pool.CalculateTotalCapacity()
-	pool.CalculateAvailableCapacity()
-	return &pool, nil
-}
+// ============================================================================
+// Pool Management Methods
+// ============================================================================
 
 // Clone creates a shadow copy of the pool.
 func (p *Pool) Clone() *Pool {
@@ -266,37 +255,9 @@ func (p *Pool) Clone() *Pool {
 	}
 }
 
-// NewPool creates a new pool instance.
-func (p *Pools) NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
-	return NewPool(name, poolType, format, drives...)
-}
-
-// CreateAndAddPool creates a new pool and adds it to the Pools collection.
-func (p *Pools) CreateAndAddPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
-	pool, err := p.NewPool(name, poolType, format, drives...)
-	if err != nil {
-		return nil, err
-	}
-	err = p.AddPool(pool)
-	if err != nil {
-		return nil, err
-	}
-	return pool, nil
-}
-
-// AddPool adds a new pool to the Pools collection.
-func (p *Pools) AddPool(pool *Pool) error {
-	if _, exists := (*p)[pool.Uuid]; exists {
-		return ErrPoolAlreadyExists
-	}
-	(*p)[pool.Uuid] = pool
-	return nil
-}
-
-// Build constructs the storage pool based on its type and format.
-func (p *Pool) Build() error {
-	return p.Type.Build(p)
-}
+// ============================================================================
+// Drive Management Methods
+// ============================================================================
 
 // AddDrives adds drives to the pool.
 func (p *Pool) AddDrives(drive ...*DriveInfo) {
@@ -340,6 +301,26 @@ func (p *Pool) RemoveDrives(uuids ...string) error {
 	return nil
 }
 
+// ============================================================================
+// Pool Property Setters
+// ============================================================================
+
+func (p *Pool) SetName(name string) {
+	p.Name = name
+}
+
+func (p *Pool) SetStatus(status Status) {
+	p.Status = status
+}
+
+func (p *Pool) SetFormat(format string) {
+	p.Format = format
+}
+
+// ============================================================================
+// Capacity Calculation Methods
+// ============================================================================
+
 func (p *Pool) CalculateTotalCapacity() {
 	var total uint64
 	for _, d := range p.AdoptedDrives {
@@ -354,4 +335,69 @@ func (p *Pool) CalculateAvailableCapacity() {
 		available += d.Drive.FsAvail
 	}
 	p.AvailableCapacity = available
+}
+
+// ============================================================================
+// Validation Functions
+// ============================================================================
+
+func ValidateStatus(status Status) error {
+	switch status.ToLower() {
+	case Healthy.ToLower(), Degraded.ToLower(), Offline.ToLower():
+		return nil
+	default:
+		return ErrInvalidStatus
+	}
+}
+
+func ValidatePoolFormat(format string) error {
+	supportedFormats := []string{"ext4", "xfs", "btrfs"}
+	for _, f := range supportedFormats {
+		if format == f {
+			return nil
+		}
+	}
+	return ErrUnsupportedFormat
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+func ShortUuid(length int, uuid string) (string, error) {
+	if len(uuid) < length {
+		return "", ErrUuidTooShort
+	}
+	return uuid[:length], nil
+}
+
+func ParsePoolType(value string) (PoolType, error) {
+	switch value {
+	case "standard":
+		return Standard, nil
+	case "mirrored":
+		return Mirrored, nil
+	case "raid0":
+		return &Raid{Level: 0}, nil
+	case "raid1":
+		return &Raid{Level: 1}, nil
+	case "raid5":
+		return &Raid{Level: 5}, nil
+	case "raid6":
+		return &Raid{Level: 6}, nil
+	case "raid10":
+		return &Raid{Level: 10}, nil
+	default:
+		return nil, ErrInvalidPoolType
+	}
+}
+
+func (p *Pool) UnmountDrive() error {
+	if err := exec.Command("sudo", "umount", p.MountPoint).Run(); err != nil {
+		return fmt.Errorf("failed to unmount pool: %w", err)
+	}
+	if err := exec.Command("sudo", "rmdir", p.MountPoint).Run(); err != nil {
+		return fmt.Errorf("failed to remove dir: %w", err)
+	}
+	return nil
 }
