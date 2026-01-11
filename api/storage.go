@@ -1,35 +1,44 @@
 package api
 
 import (
-	"errors"
 	"goNAS/DB"
+	"goNAS/helper"
 	"goNAS/storage"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-var (
-	ErrDriveNotFound            = errors.New("drive not found")
-	DriveNotFoundOrAlreadyInUse = errors.New("drive not found or already in use")
-	ErrAlreadyAdopted           = errors.New("drive already adopted")
-
-	ErrPoolNotFound       = errors.New("pool not found")
-	ErrPoolInUse          = errors.New("pool is currently in use")
-	ErrInsufficientDrives = errors.New("insufficient drives for the requested pool type")
-)
-
 func (n *Nas) poolError(err error, c *gin.Context) {
 	message := gin.H{"error": err.Error()}
-	switch {
-	case errors.Is(err, ErrPoolNotFound):
+	switch err {
+	case storage.ErrPoolNotFound:
 		c.JSON(http.StatusNotFound, message)
-	case errors.Is(err, ErrPoolInUse):
+	case storage.ErrPoolInUse:
 		c.JSON(http.StatusConflict, message)
-	case errors.Is(err, DriveNotFoundOrAlreadyInUse):
+	case storage.ErrDriveNotFoundOrInUse:
 		c.JSON(http.StatusConflict, message)
-	case errors.Is(err, ErrInsufficientDrives):
+	case storage.ErrInsufficientDrives:
 		c.JSON(http.StatusBadRequest, message)
+	case storage.ErrPoolAlreadyExists:
+		c.JSON(http.StatusConflict, message)
+	case storage.ErrPoolNotOffline:
+		c.JSON(http.StatusConflict, message)
+	case storage.ErrPoolFormatRequired:
+		c.JSON(http.StatusBadRequest, message)
+	case storage.ErrInvalidPoolType:
+		c.JSON(http.StatusBadRequest, message)
+	case storage.ErrUnsupportedFormat:
+		c.JSON(http.StatusBadRequest, message)
+	case storage.ErrInvalidStatus:
+		c.JSON(http.StatusBadRequest, message)
+	case helper.ErrRaid0RequiresDrives, helper.ErrRaid1RequiresDrives, helper.ErrRaid5RequiresDrives, 
+		 helper.ErrRaid6RequiresDrives, helper.ErrRaid10RequiresDrives:
+		c.JSON(http.StatusBadRequest, message)
+	case helper.ErrUnsupportedRaidLevel:
+		c.JSON(http.StatusBadRequest, message)
+	case storage.ErrPoolNotInMemory:
+		c.JSON(http.StatusNotFound, message)
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
 	}
@@ -37,13 +46,17 @@ func (n *Nas) poolError(err error, c *gin.Context) {
 
 func (n *Nas) driveError(err error, c *gin.Context) {
 	message := gin.H{"error": err.Error()}
-	switch {
-	case errors.Is(err, ErrDriveNotFound):
+	switch err {
+	case storage.ErrDriveNotFound:
 		c.JSON(http.StatusNotFound, message)
-	case errors.Is(err, ErrAlreadyAdopted):
+	case storage.ErrAlreadyAdopted:
 		c.JSON(http.StatusConflict, message)
-	case errors.Is(err, DriveNotFoundOrAlreadyInUse):
+	case storage.ErrDriveNotFoundOrInUse:
 		c.JSON(http.StatusConflict, message)
+	case storage.ErrNoDrivesToRemove:
+		c.JSON(http.StatusBadRequest, message)
+	case storage.ErrDuplicateDriveKey:
+		c.JSON(http.StatusBadRequest, message)
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
 	}
