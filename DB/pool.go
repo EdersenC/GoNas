@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-// Todo implement network table creation
 func (db *DB) createPoolTable(ctx context.Context) error {
 	statuses := []string{
 		string(storage.Healthy),
@@ -26,7 +25,6 @@ CREATE TABLE IF NOT EXISTS Pool (
   status      TEXT NOT NULL CHECK (status IN (%s)),
   poolType   TEXT NOT NULL CHECK (poolType IN (%s)),
   format    Text Null,
-  network    Text Null,
   createdAt  TEXT NOT NULL
 );
 `, quoteList(statuses), quoteList(poolTypes))
@@ -37,9 +35,9 @@ CREATE TABLE IF NOT EXISTS Pool (
 
 func (db *DB) InsertPool(ctx context.Context, pool *storage.Pool, createdAt string) error {
 	const q = `
-INSERT INTO Pool (uuid, name, mdDevice, status, poolType, network, format,createdAt)
+INSERT INTO Pool (uuid, name, mdDevice, status, poolType, format,createdAt)
 VALUES
-  (?, ?, ?, ?, ?, ?, ?,?);
+  (?, ?, ?, ?, ?, ?,?);
 `
 	_, err := db.conn.ExecContext(ctx, q,
 		pool.Uuid,
@@ -48,7 +46,6 @@ VALUES
 		pool.Status.ToLower(),
 		pool.Type.Value(),
 		pool.Format,
-		pool.Network,
 		createdAt,
 	)
 	return err
@@ -64,16 +61,19 @@ WHERE uuid = ?;
 }
 
 type PoolPatch struct {
-	Name    string         `json:"name"`
-	Status  storage.Status `json:"status"`
-	Format  string         `json:"format"`
-	Network string         `json:"network"`
+	Name   string         `json:"name"`
+	Status storage.Status `json:"status"`
+	Format string         `json:"format"`
 }
 
-func (db *DB) PatchPool(ctx context.Context, pool *storage.Pool, patch *PoolPatch) (*storage.Pool, error) {
-	set := make([]string, 0, 4)
-	args := make([]any, 0, 5)
-	updatedPool := pool.Clone()
+func buildPoolPatch(pool *storage.Pool, patch *PoolPatch) (set []string, args []any, updatedPool *storage.Pool) {
+	set = make([]string, 0, 4)
+	args = make([]any, 0, 5)
+	updatedPool = pool.Clone()
+
+	if patch == nil {
+		return
+	}
 
 	if patch.Name != "" {
 		set = append(set, "Name = ?")
@@ -81,7 +81,7 @@ func (db *DB) PatchPool(ctx context.Context, pool *storage.Pool, patch *PoolPatc
 		updatedPool.SetName(patch.Name)
 	}
 
-	if &patch.Status != nil {
+	if patch.Status != "" {
 		set = append(set, "status = ?")
 		args = append(args, patch.Status.ToLower())
 		updatedPool.SetStatus(patch.Status.ToLower())
@@ -93,10 +93,19 @@ func (db *DB) PatchPool(ctx context.Context, pool *storage.Pool, patch *PoolPatc
 		updatedPool.SetFormat(patch.Format)
 	}
 
-	if patch.Network != "" {
-		set = append(set, "network = ?")
-		args = append(args, patch.Network)
-	}
+	return
+}
+
+func (db *DB) PatchPoolMount(uuid, mount string) error {
+	const q = `
+UPDATE Pool SET mountPoint = ? WHERE uuid = ?;
+`
+	_, err := db.conn.ExecContext(context.Background(), q, mount, uuid)
+	return err
+}
+
+func (db *DB) PatchPool(ctx context.Context, pool *storage.Pool, patch *PoolPatch) (*storage.Pool, error) {
+	set, args, updatedPool := buildPoolPatch(pool, patch)
 
 	if len(set) == 0 {
 		return pool, nil
@@ -119,7 +128,7 @@ func (db *DB) PatchPool(ctx context.Context, pool *storage.Pool, patch *PoolPatc
 
 func (db *DB) QueryAllPools(ctx context.Context) (map[string]storage.Pool, error) {
 	const q = `
-SELECT uuid, name, mountPoint, mdDevice, status, poolType, format, network, createdAt
+SELECT uuid, name, mountPoint, mdDevice, status, poolType, format, createdAt
 FROM Pool
 ORDER BY createdAt DESC;
 `
@@ -141,7 +150,6 @@ ORDER BY createdAt DESC;
 			status     string
 			poolType   string
 			format     sql.NullString
-			network    sql.NullString
 			createdAt  string
 		)
 
@@ -152,7 +160,6 @@ ORDER BY createdAt DESC;
 			&status,
 			&poolType,
 			&format,
-			&network,
 			&createdAt,
 		); err != nil {
 			return nil, err
@@ -172,7 +179,6 @@ ORDER BY createdAt DESC;
 			Type:          convertedType,
 			MountPoint:    mountPoint.String,
 			Format:        format.String,
-			Network:       network.String,
 			CreatedAt:     createdAt,
 		}
 

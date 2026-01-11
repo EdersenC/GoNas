@@ -78,9 +78,9 @@ func listPools(c *gin.Context) {
 func createPool(c *gin.Context) {
 	var req struct {
 		Name      string   `json:"name" binding:"required"`
-		RaidLevel int      `json:"raidLevel" binding:"required"`
+		RaidLevel *int     `json:"raidLevel" binding:"required"`
 		Drives    []string `json:"drives" binding:"required"`
-		Format    string   `json:"format"`
+		Format    string   `json:"format" binding:"required"`
 		Build     bool     `json:"build"`
 	}
 
@@ -88,7 +88,7 @@ func createPool(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	pool, err := NAS.POOLS.NewPool(req.Name, &storage.Raid{Level: req.RaidLevel}, "")
+	pool, err := NAS.POOLS.NewPool(req.Name, &storage.Raid{Level: *req.RaidLevel}, req.Format)
 	if err != nil {
 		NAS.poolError(err, c)
 		return
@@ -179,6 +179,26 @@ func updatePool(c *gin.Context) {
 	SuccessResponse(c, updatedPool)
 }
 
+func buildPool(c *gin.Context) {
+	uuid := c.Param("uuid")
+	pool, err := NAS.POOLS.GetPool(uuid)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+
+	err = pool.Build()
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+	err = SERVER.Db.PatchPoolMount(pool.Uuid, pool.MountPoint)
+	if err != nil {
+		NAS.poolError(err, c)
+		return
+	}
+	SuccessResponse(c, gin.H{"built": pool.Uuid})
+}
 func SuccessResponse(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "success",

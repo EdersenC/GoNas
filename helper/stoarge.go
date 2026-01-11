@@ -162,7 +162,7 @@ func CreateMountPoint(uuid string, mdDevice string) error {
 
 // FormatPool formats the given mdDevice with the specified format command.
 func FormatPool(format string, mdDevice string) error {
-	if err := exec.Command(format, "-F", mdDevice).Run(); err != nil {
+	if err := exec.Command("mkfs."+format, "-F", mdDevice).Run(); err != nil {
 		return fmt.Errorf("failed to format RAID device: %w", err)
 	}
 	return nil

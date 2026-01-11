@@ -24,7 +24,6 @@ type Pool struct {
 	TotalCapacity     uint64
 	AvailableCapacity uint64
 	Format            string
-	Network           string
 	CreatedAt         string
 	AdoptedDrives     map[string]*AdoptedDrive
 }
@@ -74,6 +73,10 @@ func (r *Raid) Build(p *Pool) error {
 	if err := helper.CheckRaidLevel(r.Level, len(p.AdoptedDrives)); err != nil {
 		return err
 	}
+	if p.Format == "" {
+		return errors.New("pool format must be specified")
+	}
+
 	drives := make([]string, 0, len(p.AdoptedDrives))
 	for _, d := range p.AdoptedDrives {
 		drives = append(drives, DevFolder+d.Drive.Name)
@@ -85,7 +88,7 @@ func (r *Raid) Build(p *Pool) error {
 			p.MdDevice,
 			fmt.Sprintf("--level=%d", r.Level),
 			fmt.Sprintf("--raid-devices=%d", len(p.AdoptedDrives)),
-			fmt.Sprintf("--name=%s", p.Name),
+			fmt.Sprintf("--name=%s", p.Name), //Todo check if name is valid or sanitize
 		},
 		drives...,
 	)
@@ -128,7 +131,10 @@ func (p *Pools) GetPool(uuid string) (*Pool, error) {
 
 func (p *Pool) UnmountDrive() error {
 	if err := exec.Command("sudo", "umount", p.MountPoint).Run(); err != nil {
-		return fmt.Errorf("failed to unmount drive: %w", err)
+		return fmt.Errorf("failed to unmount pool: %w", err)
+	}
+	if err := exec.Command("sudo", "rmdir", p.MountPoint).Run(); err != nil {
+		return fmt.Errorf("failed to remove dir: %w", err)
 	}
 	return nil
 }
@@ -214,17 +220,13 @@ func (p *Pool) SetFormat(format string) {
 	p.Format = format
 }
 
-func (p *Pool) SetNetwork(network string) {
-	p.Network = network
-}
-
 const SHORTUUIDLEN = 16
 
 // NewPool creates a new pool instance.
-func NewPool(name string, poolType PoolType, network string, drives ...*DriveInfo) (*Pool, error) {
+func NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
 	poolMap := make(map[string]*AdoptedDrive)
 	poolId := uuid.New().String()
-	for i, _ := range drives {
+	for i := range drives {
 		adoptedDrive := NewAdoptedDrive(drives[i])
 		adoptedDrive.SetPoolID(poolId)
 		poolMap[adoptedDrive.GetUuid()] = adoptedDrive
@@ -240,7 +242,7 @@ func NewPool(name string, poolType PoolType, network string, drives ...*DriveInf
 		AdoptedDrives: poolMap,
 		MdDevice:      "/dev/md/" + shortID,
 		Type:          poolType,
-		Network:       network,
+		Format:        format,
 		CreatedAt:     CreationTime(),
 	}
 	pool.CalculateTotalCapacity()
@@ -261,19 +263,18 @@ func (p *Pool) Clone() *Pool {
 		TotalCapacity:     p.TotalCapacity,
 		AvailableCapacity: p.AvailableCapacity,
 		Format:            p.Format,
-		Network:           p.Network,
 		CreatedAt:         p.CreatedAt,
 	}
 }
 
 // NewPool creates a new pool instance.
-func (p *Pools) NewPool(name string, poolType PoolType, network string, drives ...*DriveInfo) (*Pool, error) {
-	return NewPool(name, poolType, network, drives...)
+func (p *Pools) NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
+	return NewPool(name, poolType, format, drives...)
 }
 
 // CreateAndAddPool creates a new pool and adds it to the Pools collection.
-func (p *Pools) CreateAndAddPool(name string, poolType PoolType, network string, drives ...*DriveInfo) (*Pool, error) {
-	pool, err := p.NewPool(name, poolType, network, drives...)
+func (p *Pools) CreateAndAddPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
+	pool, err := p.NewPool(name, poolType, format, drives...)
 	if err != nil {
 		return nil, err
 	}
@@ -298,17 +299,19 @@ func (p *Pool) Build() error {
 	return p.Type.Build(p)
 }
 
+// AddDrives adds drives to the pool.
 func (p *Pool) AddDrives(drive ...*DriveInfo) {
-	for i, _ := range drive {
+	for i := range drive {
 		adoptedDrive := NewAdoptedDrive(drive[i])
 		adoptedDrive.SetPoolID(p.Uuid)
 		p.AdoptedDrives[adoptedDrive.GetUuid()] = adoptedDrive
 	}
 }
 
+// GetDrives retrieves drives from the pool by their UUIDs.
 func (p *Pool) GetDrives(uuids ...string) []*DriveInfo {
 	var drives = make([]*DriveInfo, 0)
-	for i, _ := range p.AdoptedDrives {
+	for i := range p.AdoptedDrives {
 		for _, id := range uuids {
 			if p.AdoptedDrives[i].Drive.Uuid != id {
 				continue
@@ -319,6 +322,7 @@ func (p *Pool) GetDrives(uuids ...string) []*DriveInfo {
 	return drives
 }
 
+// RemoveDrives removes drives from the pool by their UUIDs.
 func (p *Pool) RemoveDrives(uuids ...string) error {
 	toRemove := make(map[string]bool, len(uuids))
 	for _, id := range uuids {

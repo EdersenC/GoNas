@@ -91,7 +91,7 @@ func (n *Nas) LoadAdoptedDrives(c context.Context) error {
 		adoptedDrive := adoptedDrives[i]
 		drive := n.getDriveByKey(adoptedDrives[i].Key())
 		if err = n.ClaimDrive(drive, adoptedDrive); err != nil {
-			return err
+			log.Println("Error claiming drive:", err)
 		}
 	}
 	return nil
@@ -288,11 +288,6 @@ func (n *Nas) AdoptDriveByKey(key string, c *gin.Context) (*storage.AdoptedDrive
 }
 
 func (n *Nas) ValidatePoolPatch(patch *DB.PoolPatch) error {
-	if patch.Network != "" {
-		if _, exists := n.Networks[patch.Network]; !exists {
-			return errors.New("network not found")
-		}
-	}
 	if patch.Status != "" {
 		err := storage.ValidateStatus(patch.Status)
 		if err != nil {
