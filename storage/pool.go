@@ -7,6 +7,8 @@ import (
 	"goNAS/network"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -277,4 +279,40 @@ func (p *Pool) CalculateAvailableCapacity() {
 		available += d.Drive.FsAvail
 	}
 	p.AvailableCapacity = available
+}
+
+// Funk executes the df command to extract total size and available size in bytes
+// for a given device. It returns the total capacity and available capacity as uint64 values.
+func Funk(device string) (total uint64, avail uint64, err error) {
+	cmd := exec.Command("df", "-B1", "--output=source,size,used,avail,pcent", device)
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, 0, fmt.Errorf("df command failed: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) < 2 {
+		return 0, 0, fmt.Errorf("unexpected df output: %q", string(out))
+	}
+
+	fields := strings.Fields(lines[1])
+	// expected: source size used avail pcent
+	if len(fields) < 4 {
+		return 0, 0, fmt.Errorf("unexpected df fields: %v", fields)
+	}
+
+	sizeStr := fields[1]
+	availStr := fields[3]
+
+	total, err = strconv.ParseUint(sizeStr, 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("parsing total size: %w", err)
+	}
+
+	avail, err = strconv.ParseUint(availStr, 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("parsing avail size: %w", err)
+	}
+
+	return total, avail, nil
 }
