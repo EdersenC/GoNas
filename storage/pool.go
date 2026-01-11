@@ -301,8 +301,14 @@ func Funk(device string) (total uint64, avail uint64, err error) {
 		return 0, 0, fmt.Errorf("unexpected df fields: %v", fields)
 	}
 
-	sizeStr := fields[1]
-	availStr := fields[3]
+	// Field indices for df output columns
+	const (
+		dfSizeFieldIndex  = 1 // size column
+		dfAvailFieldIndex = 3 // avail column
+	)
+
+	sizeStr := fields[dfSizeFieldIndex]
+	availStr := fields[dfAvailFieldIndex]
 
 	total, err = strconv.ParseUint(sizeStr, 10, 64)
 	if err != nil {
