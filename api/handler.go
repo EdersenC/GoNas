@@ -99,7 +99,7 @@ func (n *Nas) LoadAdoptedDrives(c context.Context) error {
 
 func (n *Nas) ClaimDrive(drive *storage.DriveInfo, adoptedDrive storage.AdoptedDrive) error {
 	if drive == nil {
-		return ErrDriveNotFound
+		return storage.ErrDriveNotFound
 	}
 	drive.Uuid = adoptedDrive.GetUuid()
 	adoptedDrive.Drive = drive
@@ -135,7 +135,7 @@ func (n *Nas) LoadPools(c context.Context) error {
 
 func (n *Nas) updatePool(pool *storage.Pool) error {
 	if _, exists := (*n.POOLS)[pool.Uuid]; !exists {
-		return errors.New("pool not found in memory")
+		return storage.ErrPoolNotInMemory
 	}
 	(*n.POOLS)[pool.Uuid] = pool
 	return nil
@@ -191,7 +191,7 @@ func ensureUniqueKeys(keys ...string) error {
 	keySet := make(map[string]bool)
 	for _, key := range keys {
 		if keySet[key] {
-			return errors.New("duplicate drive key found: " + key)
+			return storage.ErrDuplicateDriveKey
 		}
 		keySet[key] = true
 	}
@@ -254,7 +254,7 @@ func (n *Nas) PopulatePool(pool *storage.Pool, drives []string, c *gin.Context) 
 	for _, driveID := range drives {
 		drive := n.GetDriveByUuid(driveID)
 		if drive == nil {
-			return DriveNotFoundOrAlreadyInUse
+			return storage.ErrDriveNotFoundOrInUse
 		}
 		poolDrives = append(poolDrives, drive)
 	}
@@ -272,11 +272,11 @@ func (n *Nas) PopulatePool(pool *storage.Pool, drives []string, c *gin.Context) 
 func (n *Nas) AdoptDriveByKey(key string, c *gin.Context) (*storage.AdoptedDrive, error) {
 	adopted := n.GetAdoptedDriveByKey(key)
 	if adopted != nil {
-		return nil, ErrAlreadyAdopted
+		return nil, storage.ErrAlreadyAdopted
 	}
 	drive := n.getDriveByKey(key)
 	if drive == nil {
-		return nil, ErrDriveNotFound
+		return nil, storage.ErrDriveNotFound
 	}
 	adoptedDrive := storage.NewAdoptedDrive(drive)
 	err := SERVER.Db.InsertDrive(c, adoptedDrive.Drive, adoptedDrive.CreatedAt)
@@ -317,5 +317,5 @@ func (n *Nas) GetNetwork(uuid string) (*network.Interface, error) {
 	if netIf, exists := n.Networks[uuid]; exists {
 		return netIf, nil
 	}
-	return nil, errors.New("network not found")
+	return nil, storage.ErrNotFound
 }

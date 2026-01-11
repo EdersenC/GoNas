@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
 	"goNAS/helper"
 	"os"
@@ -30,7 +29,7 @@ type Pool struct {
 
 func ShortUuid(length int, uuid string) (string, error) {
 	if len(uuid) < length {
-		return "", errors.New("uuid length is less than requested length")
+		return "", ErrUuidTooShort
 	}
 	return uuid[:length], nil
 }
@@ -57,7 +56,7 @@ func ParsePoolType(value string) (PoolType, error) {
 	case "raid10":
 		return &Raid{Level: 10}, nil
 	default:
-		return nil, errors.New("invalid pool type")
+		return nil, ErrInvalidPoolType
 	}
 }
 
@@ -74,7 +73,7 @@ func (r *Raid) Build(p *Pool) error {
 		return err
 	}
 	if p.Format == "" {
-		return errors.New("pool format must be specified")
+		return ErrPoolFormatRequired
 	}
 
 	drives := make([]string, 0, len(p.AdoptedDrives))
@@ -124,7 +123,7 @@ type Pools map[string]*Pool
 func (p *Pools) GetPool(uuid string) (*Pool, error) {
 	pool, exists := (*p)[uuid]
 	if !exists {
-		return nil, errors.New("pool not found")
+		return nil, ErrPoolNotFound
 	}
 	return pool, nil
 }
@@ -141,7 +140,7 @@ func (p *Pool) UnmountDrive() error {
 
 func (p *Pool) Delete() error {
 	if p.Status != Offline {
-		return errors.New("cannot delete a pool that is not offline")
+		return ErrPoolNotOffline
 	}
 	if err := p.UnmountDrive(); err != nil {
 		return err
@@ -195,7 +194,7 @@ func ValidateStatus(status Status) error {
 	case Healthy.ToLower(), Degraded.ToLower(), Offline.ToLower():
 		return nil
 	default:
-		return errors.New("invalid status")
+		return ErrInvalidStatus
 	}
 }
 
@@ -206,7 +205,7 @@ func ValidatePoolFormat(format string) error {
 			return nil
 		}
 	}
-	return errors.New("unsupported pool format")
+	return ErrUnsupportedFormat
 }
 
 func (p *Pool) SetName(name string) {
@@ -288,7 +287,7 @@ func (p *Pools) CreateAndAddPool(name string, poolType PoolType, format string, 
 // AddPool adds a new pool to the Pools collection.
 func (p *Pools) AddPool(pool *Pool) error {
 	if _, exists := (*p)[pool.Uuid]; exists {
-		return errors.New("pool with the same UUID already exists")
+		return ErrPoolAlreadyExists
 	}
 	(*p)[pool.Uuid] = pool
 	return nil
@@ -330,7 +329,7 @@ func (p *Pool) RemoveDrives(uuids ...string) error {
 	}
 
 	if len(toRemove) == 0 {
-		return errors.New("no drives to remove")
+		return ErrNoDrivesToRemove
 	}
 
 	for name, d := range p.AdoptedDrives {

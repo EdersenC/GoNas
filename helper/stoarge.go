@@ -13,6 +13,16 @@ import (
 var Gigabyte = uint64(1024 * 1024 * 1024)
 var Megabyte = uint64(1024 * 1024)
 
+// RAID-related errors
+var (
+	ErrRaid0RequiresDrives   = errors.New("raid0 requires at least 2 drives")
+	ErrRaid1RequiresDrives   = errors.New("raid1 requires at least 2 drives")
+	ErrRaid5RequiresDrives   = errors.New("raid5 requires at least 3 drives")
+	ErrRaid6RequiresDrives   = errors.New("raid6 requires at least 4 drives")
+	ErrRaid10RequiresDrives  = errors.New("raid10 requires at least 4 drives and an even number of drives")
+	ErrUnsupportedRaidLevel  = errors.New("unsupported raid level")
+)
+
 func Contains(list []string, val string) bool {
 	for _, v := range list {
 		if strings.Contains(val, v) {
@@ -106,26 +116,26 @@ func CheckRaidLevel(level int, drives int) error {
 	switch level {
 	case 0:
 		if drives < 2 {
-			return errors.New("raid0 requires at least 2 drives")
+			return ErrRaid0RequiresDrives
 		}
 	case 1:
 		if drives < 2 {
-			return errors.New("raid1 requires at least 2 drives")
+			return ErrRaid1RequiresDrives
 		}
 	case 5:
 		if drives < 3 {
-			return errors.New("raid5 requires at least 3 drives")
+			return ErrRaid5RequiresDrives
 		}
 	case 6:
 		if drives < 4 {
-			return errors.New("raid6 requires at least 4 drives")
+			return ErrRaid6RequiresDrives
 		}
 	case 10:
 		if drives < 4 || drives%2 != 0 {
-			return errors.New("raid10 requires at least 4 drives and an even number of drives")
+			return ErrRaid10RequiresDrives
 		}
 	default:
-		return errors.New("unsupported raid level")
+		return ErrUnsupportedRaidLevel
 	}
 	return nil
 }
