@@ -32,8 +32,8 @@ func (n *Nas) poolError(err error, c *gin.Context) {
 		c.JSON(http.StatusBadRequest, message)
 	case storage.ErrInvalidStatus:
 		c.JSON(http.StatusBadRequest, message)
-	case helper.ErrRaid0RequiresDrives, helper.ErrRaid1RequiresDrives, helper.ErrRaid5RequiresDrives, 
-		 helper.ErrRaid6RequiresDrives, helper.ErrRaid10RequiresDrives:
+	case helper.ErrRaid0RequiresDrives, helper.ErrRaid1RequiresDrives, helper.ErrRaid5RequiresDrives,
+		helper.ErrRaid6RequiresDrives, helper.ErrRaid10RequiresDrives:
 		c.JSON(http.StatusBadRequest, message)
 	case helper.ErrUnsupportedRaidLevel:
 		c.JSON(http.StatusBadRequest, message)

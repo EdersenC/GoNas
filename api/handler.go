@@ -317,5 +317,5 @@ func (n *Nas) GetNetwork(uuid string) (*network.Interface, error) {
 	if netIf, exists := n.Networks[uuid]; exists {
 		return netIf, nil
 	}
-	return nil, storage.ErrPoolNotFound // This seems like a wrong error, but keeping minimal changes
+	return nil, storage.ErrNotFound
 }

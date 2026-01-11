@@ -25,3 +25,8 @@ var (
 	ErrUuidTooShort        = errors.New("uuid length is less than requested length")
 	ErrPoolNotInMemory     = errors.New("pool not found in memory")
 )
+
+// Generic errors
+var (
+	ErrNotFound = errors.New("resource not found")
+)
