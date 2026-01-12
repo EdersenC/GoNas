@@ -2,16 +2,15 @@ package DB
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"strings"
-	"time"
 
-	_ "modernc.org/sqlite"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type DB struct {
-	conn *sql.DB
+	conn *gorm.DB
 }
 
 func NewDB(path string) *DB {
@@ -23,53 +22,48 @@ func NewDB(path string) *DB {
 }
 
 func (db *DB) Close() error {
-	return db.conn.Close()
+	sqlDB, err := db.conn.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Close()
 }
 
-func Init(path string) (*sql.DB, error) {
-	base := fmt.Sprintf("file:%s", path)
-	params := []string{
-		"_pragma=busy_timeout(5000)",
-		"_pragma=foreign_keys(1)",
-		"_pragma=journal_mode(WAL)",
-	}
-	dsn := base + "?" + strings.Join(params, "&")
+func Init(path string) (*gorm.DB, error) {
+	// Configure GORM with SQLite driver and pragmas
+	dsn := fmt.Sprintf("file:%s?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)", path)
 
-	db, err := sql.Open("sqlite", dsn)
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	if err = db.PingContext(ctx); err != nil {
-		_ = db.Close()
+	// Set connection pool settings
+	sqlDB, err := db.DB()
+	if err != nil {
 		return nil, err
 	}
-	return db, nil
 
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetMaxIdleConns(1)
+	sqlDB.SetConnMaxLifetime(0)
+
+	// Explicitly enable foreign keys (in case DSN pragma doesn't work)
+	if err := db.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
 
 func (db *DB) InitSchema(ctx context.Context) error {
-	if err := db.createPoolTable(ctx); err != nil {
+	// Use GORM AutoMigrate to create tables with foreign key constraints
+	// The Pool relationship in DriveModel will ensure the foreign key is created
+	if err := db.conn.WithContext(ctx).AutoMigrate(&PoolModel{}, &DriveModel{}); err != nil {
 		return err
 	}
 
-	if err := db.createDriveTable(ctx); err != nil {
-		return err
-	}
 	return nil
-}
-
-func quoteList(vals []string) string {
-	out := make([]string, 0, len(vals))
-	for _, v := range vals {
-		v = strings.ReplaceAll(v, "'", "''")
-		out = append(out, fmt.Sprintf("'%s'", v))
-	}
-	return strings.Join(out, ", ")
 }
