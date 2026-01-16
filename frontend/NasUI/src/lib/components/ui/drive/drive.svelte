@@ -26,10 +26,10 @@
 </script>
 
 <div class="drive-card" id="drive-{id}">
-    <Card.Root class="h-full flex flex-col bg-zinc-900 text-zinc-100
-">
+    <Card.Root class="h-full flex flex-col bg-zinc-700 text-zinc-100">
         <Card.Header>
-            <Card.Title>{drive.name}
+            <Card.Title class="flex items-center justify-between gap-2">
+            {drive.name}
                 {#if drive.name.includes("loop")}
                     <Status degraded = {false} offline ={false}></Status>
                 {:else}

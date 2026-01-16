@@ -16,5 +16,5 @@
     console.log(statusClasses[status]);
 </script>
 
-<span class="w-3 h-3 rounded-full inline-flex shrink-0 self-start {statusClasses[status]}"></span>
+<span class="w-3 h-3 rounded-full inline-flex shrink-0 self-center {statusClasses[status]}"></span>
 

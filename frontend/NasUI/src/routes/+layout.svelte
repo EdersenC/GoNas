@@ -10,7 +10,7 @@
     }
 
     nav {
-        background-color: #2c3e50;
+        background-color: #2b7efc;
         padding: 1rem;
         display: flex;
         gap: 1rem;
