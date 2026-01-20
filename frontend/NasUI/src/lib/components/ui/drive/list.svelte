@@ -4,7 +4,6 @@
     import {AspectRatio} from "$lib/components/ui/aspect-ratio/index.js";
     import { Spinner } from "$lib/components/ui/spinner/index.js";
     import { fade } from 'svelte/transition';
-    import {Separator} from "$lib/components/ui/separator/index.js";
 
     interface Props {
         label?: string;

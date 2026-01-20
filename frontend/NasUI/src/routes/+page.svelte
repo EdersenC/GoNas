@@ -8,4 +8,5 @@
     <DrivesList />
     <Separator class="mx-auto w-[calc(100%-4rem)] sm:w-[calc(100%-12rem)]" />
     <PoolsList />
+
 </div>

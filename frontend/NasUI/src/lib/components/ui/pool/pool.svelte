@@ -38,7 +38,7 @@
     <Card.Root class="h-full flex flex-col bg-zinc-700 text-zinc-100">
         <Card.Header class="pb-2">
             <Card.Title class="flex items-center justify-between gap-2">
-                <span class="truncate">{pool.name || 'Unnamed Pool'}</span>
+                <span>{pool.name || 'Unnamed Pool'}</span>
                 <Status degraded={pool.status === 'degraded'} offline={pool.status === 'offline' || pool.status === 'failed'} />
             </Card.Title>
             <Card.Description class="text-zinc-400 text-xs">
@@ -121,4 +121,3 @@
         display: block;
     }
 </style>
-

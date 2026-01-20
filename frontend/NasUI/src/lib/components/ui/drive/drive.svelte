@@ -1,11 +1,14 @@
 <script lang="ts">
     import {Button} from "$lib/components/ui/button/index.ts";
-    import {Status} from "$lib/components/ui/drive/index.ts";
+    import {Status, Size, ActionDropdown} from "$lib/components/ui/drive/index.ts";
     import type {Drive} from "$lib/models/drive.ts";
     import * as Card from "$lib/components/ui/card/index.js";
-    export let drive: Drive;
-    export let id : string;
+    import { page } from '$app/stores';
 
+    let{
+        drive,
+        id
+    } = $props();
 
     function formatBytes(bytes: number): string {
         if (bytes === 0) return '0 B';
@@ -16,51 +19,57 @@
     }
 
    export async function Post(driveId: string) {
-        // Placeholder function for adopting a drive
-        const res = await fetch(`http://localhost:8080/api/v1/drives/adopt/${driveId}`, {
+        let url = `http://localhost:8080/api/v1/drives/adopt/${driveId}`;
+        if ($page.url.pathname.startsWith('/pools')) {
+            url = `http://localhost:8080/api/v1/pools/adopt/${driveId}`;
+        }
+        const res = await fetch(url, {
             method: 'POST',
         });
         console.log(await res.json())
         console.log(`Adopting drive with ID: ${driveId}`);
     }
+
+    let used = $derived(drive.size_bytes - drive.fsavail);
+    let percent = $derived(drive.size_bytes > 0 ? (used / drive.size_bytes) * 100 : 0);
 </script>
 
 <div class="drive-card" id="drive-{id}">
     <Card.Root class="h-full flex flex-col bg-zinc-700 text-zinc-100">
         <Card.Header>
-            <Card.Title class="flex items-center justify-between gap-2">
-            {drive.name}
+            <Card.Title class="flex items-center gap-2">
                 {#if drive.name.includes("loop")}
-                    <Status degraded = {false} offline ={false}></Status>
+                    <Status degraded={false} offline={false}></Status>
                 {:else}
-                    <Status degraded = {false} offline ={drive.is_rotational}></Status>
+                    <Status degraded={false} offline={drive.is_rotational}></Status>
                 {/if}
+                <span class="flex-1 text-center font-bold truncate">{drive.name}</span>
+                <ActionDropdown />
             </Card.Title>
         </Card.Header>
-        <Card.Content class="flex-1 flex flex-col gap-2 text-sm">
-            <div class="flex justify-between">
-                <span class="text-muted-foreground">Type</span>
-                <span>{drive.type}</span>
+        <Card.Content class="flex-1 flex flex-col gap-1 text-sm">
+            <div class="flex justify-center mb-1">
+                <div class="flex flex-col gap-0 text-center">
+                    <span class="text-zinc-100 font-bold underline text-xs">Size</span>
+                    <span class="font-bold text-sm truncate max-w-[100px]">{formatBytes(drive.size_bytes)}</span>
+                </div>
             </div>
-            <div class="flex justify-between">
-                <span class="text-muted-foreground">Size</span>
-                <span>{formatBytes(drive.size_bytes)}</span>
-            </div>
-            <div class="flex justify-between">
-                <span class="text-muted-foreground">Available</span>
-                <span>{formatBytes(drive.fsavail)}</span>
-            </div>
-            <div class="flex justify-between">
-                <span class="text-muted-foreground">Model</span>
-                <span class="truncate max-w-[120px]">{drive.model || 'N/A'}</span>
-            </div>
-            <div class="flex justify-between">
-                <span class="text-muted-foreground">Mount Point</span>
-                <span class="truncate max-w-[120px]">{drive.mountpoint || 'Not mounted'}</span>
-            </div>
-            <div class="flex justify-between">
-                <span class="text-muted-foreground">Rotational</span>
-                <span>{drive.is_rotational ? 'HDD' : 'SSD'}</span>
+            <div class="flex items-center">
+                <div class="flex-1 text-left">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-zinc-100 font-bold underline text-xs">Used</span>
+                        <span class="font-bold truncate max-w-[80px]">{formatBytes(used)}</span>
+                    </div>
+                </div>
+                <div class="flex justify-center">
+                    <Size percent={percent} />
+                </div>
+                <div class="flex-1 text-center">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-zinc-100 font-bold underline text-xs">Available</span>
+                        <span class="font-bold truncate max-w-[80px]">{formatBytes(drive.fsavail)}</span>
+                    </div>
+                </div>
             </div>
         </Card.Content>
         <Card.Footer>

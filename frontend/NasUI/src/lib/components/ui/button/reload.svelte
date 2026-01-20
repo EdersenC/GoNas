@@ -16,22 +16,20 @@
     }: Props = $props();
 
     let spinning = $state(false);
-    let animationKey = $state(0);
 
     async function handleClick() {
         if (spinning) return;
 
         spinning = true;
-        animationKey++; // Force re-render to restart animation
 
         if (onclick) {
             await onclick();
         }
 
-        // Wait for animation to complete (500ms) plus a small buffer
+        // Complete one full rotation (1 second)
         setTimeout(() => {
             spinning = false;
-        }, 550);
+        }, 1000);
     }
 </script>
 
@@ -48,9 +46,8 @@
     {...restProps}
 >
     <svg
-        key={animationKey}
         class={cn(
-            "h-5 w-5",
+            "h-5 w-5 transition-transform duration-500",
             (spinning || isSpinning) && "spinning"
         )}
         xmlns="http://www.w3.org/2000/svg"
@@ -66,17 +63,16 @@
 
 <style>
     @keyframes spin-once {
-        0% {
+        from {
             transform: rotate(0deg);
         }
-        100% {
+        to {
             transform: rotate(360deg);
         }
     }
 
     :global(.spinning) {
-        animation: spin-once 0.5s ease-in-out;
-        animation-fill-mode: forwards;
+        animation: spin-once 1s ease-in-out forwards;
     }
 </style>
 

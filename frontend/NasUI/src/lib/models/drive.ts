@@ -32,8 +32,23 @@ export type Drive = {
     fsavail: number;
 }
 
-export async function fetchDrives(): Promise<Record<string, Drive>> {
-    const res = await fetch("http://localhost:8080/api/v1/drives");
+
+export type AdoptedDrive = {
+    drive : Drive;
+    uuid: string;
+    created_at: string;
+    poolId : string;
+}
+
+
+let baseUrl = "localhost:8080/api/v1";
+
+export async function fetchSystemDrives(): Promise<Record<string, Drive>> {
+    return fetchDrives(`http://${baseUrl}/drives`);
+}
+
+export async function fetchDrives(url:string): Promise<Record<string, Drive>> {
+    const res = await fetch(url);
 
     if (!res.ok) {
         throw new Error(`Failed to load drives: ${res.status}`);
@@ -41,4 +56,8 @@ export async function fetchDrives(): Promise<Record<string, Drive>> {
 
     const data = await res.json();
     return data.data as Record<string, Drive>;
+}
+
+export async function fetchAdoptedDrives(): Promise<Record<string, Drive>> {
+    return fetchDrives(`http://${baseUrl}/drives/adopted`);
 }
