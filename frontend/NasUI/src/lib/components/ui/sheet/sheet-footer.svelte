@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { HTMLAttributes } from "svelte/elements";
 	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
 		ref = $bindable(null),
@@ -12,12 +12,8 @@
 
 <div
 	bind:this={ref}
-	data-slot="card"
-	class={cn(
-		"bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
-		className
-	)}
-	style="background-color: var(--card, #1f2937); color: var(--card-foreground, #f4f4f5);"
+	data-slot="sheet-footer"
+	class={cn("mt-auto flex flex-col gap-2 p-4", className)}
 	{...restProps}
 >
 	{@render children?.()}

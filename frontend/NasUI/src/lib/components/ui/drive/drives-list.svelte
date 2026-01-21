@@ -7,6 +7,12 @@
     import List from './list.svelte';
 
     // Cache drives data to prevent refetching on every mount
+
+    let {
+        ratio
+
+    } = $props();
+
     let cachedDrives: Record<string, Drive> | null = null;
     let cacheLoading = false;
 
@@ -39,6 +45,30 @@
                     drives[key] = drive.drive;
                 }
             }
+            // Add fake drives for testing
+            for (let i = 0; i < 20; i++) {
+                drives[`fake-${i}`] = {
+                    name: `Fake Drive ${i}`,
+                    uuid: `fake-uuid-${i}`,
+                    drive_key: { kind: 'hash', value: `fake-value-${i}` },
+                    by_ids: null,
+                    wwid: '',
+                    path: `/dev/fake${i}`,
+                    size_sectors: 209715200,
+                    logical_block_size: 512,
+                    physical_block_size: 512,
+                    size_bytes: 107374182400 + i * 1000000000,
+                    is_rotational: i % 2 === 0,
+                    model: `Fake Model ${i}`,
+                    vendor: `Fake Vendor ${i}`,
+                    serial: `Fake Serial ${i}`,
+                    type: 'disk',
+                    mountpoint: i < 5 ? `/mnt/fake${i}` : '',
+                    partitions: null,
+                    fstype: i < 5 ? 'ext4' : '',
+                    fsavail: i < 5 ? 50000000 : 0
+                };
+            }
             cachedDrives = drives;
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to fetch drives';
@@ -49,7 +79,7 @@
     }
 </script>
 
-<List label={adopted ? "Adopted Drives" : "System Drives"} {loading} {error} onRefresh={loadDrives}>
+<List label="Drives" {loading} {error} onRefresh={loadDrives} ratio={ratio}>
     {#each Object.entries(drives) as [id, drive], i (id)}
         <div in:scale={{ duration: 300, delay: i * 50, start: 0.8 }}>
             <UIDrive drive={drive} id={i} />

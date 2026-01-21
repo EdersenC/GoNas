@@ -12,12 +12,8 @@
 
 <div
 	bind:this={ref}
-	data-slot="card"
-	class={cn(
-		"bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
-		className
-	)}
-	style="background-color: var(--card, #1f2937); color: var(--card-foreground, #f4f4f5);"
+	data-slot="sheet-header"
+	class={cn("flex flex-col gap-1.5 p-4", className)}
 	{...restProps}
 >
 	{@render children?.()}

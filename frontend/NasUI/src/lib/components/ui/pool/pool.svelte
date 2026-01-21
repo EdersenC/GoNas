@@ -2,7 +2,7 @@
     import {Button} from "$lib/components/ui/button/index.ts";
     import {Status} from "$lib/components/ui/drive/index.ts";
     import type {Pool} from "$lib/models/pool.ts";
-    import * as Card from "$lib/components/ui/card/index.js";
+    import { Root as CardRoot, Header as CardHeader, Content as CardContent, Footer as CardFooter, Title as CardTitle, Description as CardDescription } from "$lib/components/ui/card/index.ts";
 
     interface Props {
         pool: Pool;
@@ -35,82 +35,82 @@
 </script>
 
 <div class="pool-card" id="pool-{id}">
-    <Card.Root class="h-full flex flex-col bg-zinc-700 text-zinc-100">
-        <Card.Header class="pb-2">
-            <Card.Title class="flex items-center justify-between gap-2">
+    <CardRoot class="h-full w-full max-w-full min-w-0 flex flex-col !bg-zinc-800 !text-zinc-100 text-zinc-100 border border-zinc-800/40 rounded-lg shadow-sm transform transition-transform transition-shadow transition-colors duration-100 ease-out will-change-transform hover:scale-[1.02] hover:shadow-lg hover:border-zinc-600/60 hover:ring-2 hover:ring-zinc-400/50">
+        <CardHeader class="pb-2">
+            <CardTitle class="flex items-center justify-between gap-2">
                 <span>{pool.name || 'Unnamed Pool'}</span>
                 <Status degraded={pool.status === 'degraded'} offline={pool.status === 'offline' || pool.status === 'failed'} />
-            </Card.Title>
-            <Card.Description class="text-zinc-400 text-xs">
+            </CardTitle>
+            <CardDescription class="text-zinc-400 text-xs">
                 {pool.type || 'RAID'} • {pool.format || 'Unknown'}
-            </Card.Description>
-        </Card.Header>
-        <Card.Content class="flex-1 flex flex-col gap-3 text-sm overflow-hidden">
-            <!-- Capacity Bar -->
-            <div class="space-y-1">
-                <div class="flex justify-between text-xs">
-                    <span class="text-muted-foreground">Capacity</span>
-                    <span>{usagePercent}% used</span>
-                </div>
-                <div class="h-2 bg-zinc-600 rounded-full overflow-hidden">
-                    <div
-                        class="h-full transition-all duration-300 {usagePercent > 90 ? 'bg-red-500' : usagePercent > 70 ? 'bg-yellow-500' : 'bg-blue-500'}"
-                        style="width: {usagePercent}%"
-                    ></div>
-                </div>
-                <div class="flex justify-between text-xs text-zinc-400">
-                    <span>{formatBytes(pool.totalCapacity - pool.availableCapacity)} used</span>
-                    <span>{formatBytes(pool.totalCapacity)} total</span>
-                </div>
-            </div>
+            </CardDescription>
+        </CardHeader>
+        <CardContent class="flex-1 flex flex-col gap-3 text-sm overflow-hidden">
+             <!-- Capacity Bar -->
+             <div class="space-y-1">
+                 <div class="flex justify-between text-xs">
+                     <span class="text-muted-foreground">Capacity</span>
+                     <span>{usagePercent}% used</span>
+                 </div>
+                 <div class="h-2 bg-zinc-600 rounded-full overflow-hidden">
+                     <div
+                         class="h-full transition-all duration-300 {usagePercent > 90 ? 'bg-red-500' : usagePercent > 70 ? 'bg-yellow-500' : 'bg-blue-500'}"
+                         style="width: {usagePercent}%"
+                     ></div>
+                 </div>
+                 <div class="flex justify-between text-xs text-zinc-400">
+                     <span>{formatBytes(pool.totalCapacity - pool.availableCapacity)} used</span>
+                     <span>{formatBytes(pool.totalCapacity)} total</span>
+                 </div>
+             </div>
 
-            <!-- Pool Info -->
-            <div class="space-y-1.5">
-                <div class="flex justify-between">
-                    <span class="text-muted-foreground">Available</span>
-                    <span>{formatBytes(pool.availableCapacity)}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-muted-foreground">Mount Point</span>
-                    <span class="truncate max-w-[200px]">{pool.mountPoint || 'Not mounted'}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-muted-foreground">Created</span>
-                    <span>{formatDate(pool.createdAt)}</span>
-                </div>
-            </div>
+             <!-- Pool Info -->
+             <div class="space-y-1.5">
+                 <div class="flex justify-between">
+                     <span class="text-muted-foreground">Available</span>
+                     <span>{formatBytes(pool.availableCapacity)}</span>
+                 </div>
+                 <div class="flex justify-between">
+                     <span class="text-muted-foreground">Mount Point</span>
+                     <span class="truncate max-w-[200px]">{pool.mountPoint || 'Not mounted'}</span>
+                 </div>
+                 <div class="flex justify-between">
+                     <span class="text-muted-foreground">Created</span>
+                     <span>{formatDate(pool.createdAt)}</span>
+                 </div>
+             </div>
 
-            <!-- Drives List -->
-            {#if pool.AdoptedDrives && driveCount > 0}
-                <div class="mt-auto min-h-0 flex flex-col">
-                    <span class="text-xs text-muted-foreground mb-1 block shrink-0">Drives ({driveCount})</span>
-                    <div class="flex flex-wrap gap-2 overflow-y-auto max-h-[80px]">
-                        {#each Object.values(pool.AdoptedDrives).slice(0, 6) as poolDrive}
-                            <span class="text-xs px-3 py-1.5 rounded bg-zinc-600 text-zinc-300 inline-flex items-center gap-2 max-w-[180px]">
-                                <Status
-                                    degraded={false}
-                                    offline={poolDrive.drive.is_rotational}
-                                />
-                                <span class="truncate">{poolDrive.drive.name}</span>
-                                <span class="text-green-500 shrink-0">({formatBytes(poolDrive.drive.size_bytes)})</span>
-                            </span>
-                        {/each}
-                        {#if driveCount > 6}
-                            <span class="text-xs px-3 py-1.5 rounded bg-zinc-600 text-zinc-400">
-                                +{driveCount - 6} more
-                            </span>
-                        {/if}
-                    </div>
-                </div>
-            {/if}
-        </Card.Content>
+             <!-- Drives List -->
+             {#if pool.AdoptedDrives && driveCount > 0}
+                 <div class="mt-auto min-h-0 flex flex-col">
+                     <span class="text-xs text-muted-foreground mb-1 block shrink-0">Drives ({driveCount})</span>
+                     <div class="flex flex-wrap gap-2 overflow-y-auto max-h-[80px]">
+                         {#each Object.values(pool.AdoptedDrives).slice(0, 6) as poolDrive}
+                             <span class="text-xs px-3 py-1.5 rounded bg-zinc-600 text-zinc-300 inline-flex items-center gap-2 max-w-[180px]">
+                                 <Status
+                                     degraded={false}
+                                     offline={poolDrive.drive.is_rotational}
+                                 />
+                                 <span class="truncate">{poolDrive.drive.name}</span>
+                                 <span class="text-green-500 shrink-0">({formatBytes(poolDrive.drive.size_bytes)})</span>
+                             </span>
+                         {/each}
+                         {#if driveCount > 6}
+                             <span class="text-xs px-3 py-1.5 rounded bg-zinc-600 text-zinc-400">
+                                 +{driveCount - 6} more
+                             </span>
+                         {/if}
+                     </div>
+                 </div>
+             {/if}
+         </CardContent>
 
-        <Card.Footer class="pt-2 mt-auto shrink-0">
-            <Button variant="outline" class="w-full text-zinc-300 border-zinc-500 hover:bg-zinc-600">
-                Manage Pool
-            </Button>
-        </Card.Footer>
-    </Card.Root>
+         <CardFooter class="pt-2 mt-auto shrink-0">
+             <Button variant="outline" class="w-full text-zinc-300 border-zinc-500 hover:bg-zinc-600">
+                 Manage Pool
+             </Button>
+         </CardFooter>
+     </CardRoot>
 </div>
 
 <style>

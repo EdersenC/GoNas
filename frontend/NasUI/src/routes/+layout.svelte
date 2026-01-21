@@ -29,11 +29,5 @@
 
 </style>
 
-<nav>
-    <a href="/">Home</a>
-    <a href="/pools">Pools</a>
-    <a href="/drives">Drives</a>
-    <a href="/pool/create">Pool Creator</a>
-</nav>
 
 {@render children()}
