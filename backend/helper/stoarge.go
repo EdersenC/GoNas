@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"goNAS/config"
 )
 
 var Gigabyte = uint64(1024 * 1024 * 1024)
@@ -48,13 +51,32 @@ func StripTrailingDigits(s string) string {
 
 func CreateLoopDevice(size string, amount int) error {
 	name := "testDrive"
-	amountStr := fmt.Sprintf("%d", amount)
-	filePath := "./backend/makeFakeDrives.sh"
-	cmd := exec.Command("sudo", filePath, name, amountStr, size)
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to create Loop devices with size %s: %w", size, err)
+	if strings.TrimSpace(size) == "" {
+		return fmt.Errorf("invalid size: empty string")
+	}
+	if amount <= 0 {
+		return fmt.Errorf("invalid amount: %d (must be > 0)", amount)
+	}
+
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("creating loop devices requires root privileges")
+	}
+
+	workdir, err := filepath.Abs(".")
+	if err != nil {
+		return fmt.Errorf("determine workdir: %w", err)
+	}
+
+	loops, err := config.CreateLoopImages(name, workdir, amount, size)
+	if err != nil {
+		return err
+	}
+
+	if len(loops) > 0 {
+		fmt.Printf("Loop devices created:\n")
+		for _, l := range loops {
+			fmt.Printf("  %s\n", l)
+		}
 	}
 	return nil
 }
