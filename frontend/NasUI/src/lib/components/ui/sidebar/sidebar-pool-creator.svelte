@@ -69,7 +69,7 @@
 
         <div class="flex gap-2">
             <button class="px-3 py-2 rounded bg-success text-success-foreground hover:bg-success/90" on:click={createPool}>Create</button>
-            <button class="px-3 py-2 rounded bg-surface-muted text-surface-foreground hover:bg-surface-border" on:click={() => selectedDrivesActions.clear()}>Clear</button>
+            <button class="px-3 py-2 rounded bg-surface-muted text-surface-foreground hover:bg-surface-muted/80" on:click={() => selectedDrivesActions.clear()}>Clear</button>
         </div>
     </div>
 </div>
