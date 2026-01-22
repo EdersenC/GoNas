@@ -8,14 +8,15 @@
     import { onMount } from 'svelte';
     import {Footer} from "$lib/components/ui/card/index.js";
 
-    let myOpen = $state(false);
+    let isSideBarOpened = $state(false);
+    let poolCreatorMode = $derived(isSideBarOpened);
     let ratio = $state(2);
 
 
     function openSidebar() {
-        myOpen = !myOpen;
-        ratio = myOpen ? 1.5 : 2;
-        if (myOpen) {
+        isSideBarOpened = !isSideBarOpened;
+        ratio = isSideBarOpened ? 1.5 : 2;
+        if (isSideBarOpened) {
             document.documentElement.style.overflow = "hidden";
             document.body.style.overflow = "hidden";
         } else {
@@ -34,13 +35,13 @@
 >
     <div
             class="grid min-h-screen transition-[grid-template-columns] duration-300 ease-in-out"
-            style={myOpen
+            style={isSideBarOpened
       ? "grid-template-columns: var(--sb) 1fr;"
       : "grid-template-columns: 0 1fr;"}
     >
         <!-- Sidebar -->
         <aside class="h-screen overflow-hidden bg-canvas">
-            <SidebarProvider bind:open={myOpen} style="--sidebar-width: var(--sb);">
+            <SidebarProvider bind:open={isSideBarOpened} style="--sidebar-width: var(--sb);">
                 <SidebarRoot>
                     <SidebarContent>
                         <PoolCreator />
@@ -53,9 +54,9 @@
         <main class="min-w-0 bg-canvas">
             <div class="h-screen overflow-y-auto overscroll-contain overflow-x-hidden">
                 <div class="pt-10 pb-48 min-w-0">
-                    <DrivesList ratio={ratio} />
+                    <DrivesList ratio={ratio} poolCreatorMode={poolCreatorMode} />
 
-                    {#if !myOpen}
+                    {#if !isSideBarOpened}
                         <PoolsList />
                     {/if}
 
@@ -70,6 +71,6 @@
     </div>
 
     <Button onclick={openSidebar} class="fixed bottom-4 right-4 z-50">
-        {myOpen ? 'Close Sidebar' : 'Open Sidebar'}
+        {isSideBarOpened ? 'Close Sidebar' : 'Open Sidebar'}
     </Button>
 </div>

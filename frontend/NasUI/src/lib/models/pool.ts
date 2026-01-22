@@ -31,3 +31,5 @@ export async function fetchPools(): Promise<Record<string, Pool>> {
     const data = await res.json();
     return data.data as Record<string, Pool>;
 }
+
+

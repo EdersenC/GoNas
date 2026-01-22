@@ -1,15 +1,10 @@
 <script lang="ts">
-    import { selectedDrives, selectedDrivesActions } from "$lib/stores/selectedDrives.ts";
-    import { onDestroy } from 'svelte';
-
     let name = $state('');
     let raidLevel = $state(10);
     let format = $state('ext4');
     let build = $state(false);
 
     let selected: string[] = [];
-    const unsubscribe = selectedDrives.subscribe(v => selected = v);
-    onDestroy(unsubscribe);
 
     async function createPool() {
         const payload = {
@@ -33,7 +28,6 @@
             console.log('Pool creation response', data);
             // Clear form and selection on success
             name = '';
-            selectedDrivesActions.clear();
         } catch (e) {
             console.error('Failed to create pool', e);
         }
@@ -68,8 +62,10 @@
         {/if}
 
         <div class="flex gap-2">
-            <button class="px-3 py-2 rounded bg-success text-success-foreground hover:bg-success/90" on:click={createPool}>Create</button>
-            <button class="px-3 py-2 rounded bg-surface-muted text-surface-foreground hover:bg-surface-muted/80" on:click={() => selectedDrivesActions.clear()}>Clear</button>
+            <button class="px-3 py-2 rounded bg-success text-success-foreground hover:bg-success/90"
+                    onclick={createPool}>Create</button>
+            <button class="px-3 py-2 rounded bg-surface-muted text-surface-foreground hover:bg-surface-muted/80"
+                    onclick={() => {console.log("clear me")}}>Clear</button>
         </div>
     </div>
 </div>

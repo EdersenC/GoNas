@@ -2,12 +2,13 @@
     import {Button} from "$lib/components/ui/button/index.ts";
     import {Status, Size, ActionDropdown} from "$lib/components/ui/drive/index.ts";
     import { Root as CardRoot, Header as CardHeader, Content as CardContent, Footer as CardFooter, Title as CardTitle } from "$lib/components/ui/card/index.ts";
-    import { selectedDrivesActions, selectedDrives } from "$lib/stores/selectedDrives.ts";
-
     let{
         drive,
-        id
+        id,
+        poolCreatorMode,
     } = $props();
+
+   let realstate = $state(poolCreatorMode);
 
     function formatBytes(bytes: number): string {
         if (bytes === 0) return '0 B';
@@ -35,13 +36,6 @@
     let used = $derived(drive ? drive.size_bytes - drive.fsavail : 0);
     let percent = $derived(drive && drive.size_bytes > 0 ? (used / drive.size_bytes) * 100 : 0);
 
-    // Selection state for pool creation — derive from the selectedDrives store
-    let isSelected = $derived((($selectedDrives ?? []) && drive) ? $selectedDrives.includes(drive.uuid) : false);
-
-    function toggleSelect() {
-        if (!drive?.uuid) return;
-        selectedDrivesActions.toggleDrive(drive.uuid);
-    }
 </script>
 
 {#if drive}
@@ -52,16 +46,19 @@
            border border-panel-border/60 rounded-lg shadow-sm
            transform transition-transform transition-shadow transition-colors
            duration-100 ease-out will-change-transform
-           hover:scale-[1.02] hover:shadow-lg hover:border-brand/50 hover:ring-2 hover:ring-brand/30"
+           hover:scale-[1.02] hover:shadow-lg hover:border-brand/50 hover:ring-2 hover:ring-brand/30{(poolCreatorMode) ? ' ring-2 ring-brand/50' : ''}"
                 style="--card: var(--color-panel); --card-foreground: var(--color-panel-foreground); --card-border: var(--color-panel-border);"
+                tabindex="0"
+                role="button"
+                onclick={()=> {console.log("Drive card clicked: " + (drive?.name || "unknown"))}}
+                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); } }}
         >
             <CardHeader class="min-w-0">
                 <!-- min-w-0 on the flex row is critical -->
                 <CardTitle class="flex items-center gap-2 min-w-0">
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" aria-label="Select drive for pool" checked={isSelected} on:change={toggleSelect} />
+                        <!-- checkbox removed: entire card is clickable now -->
                     </div>
-
                     {#if drive.name?.includes("loop")}
                         <Status degraded={false} offline={false} />
                     {:else}
@@ -74,7 +71,7 @@
         </span>
 
                     <!-- prevent dropdown from forcing width -->
-                    <div class="shrink-0">
+                    <div class="shrink-0" on:click|stopPropagation>
                         <ActionDropdown />
                     </div>
                 </CardTitle>
@@ -118,14 +115,16 @@
 
             <CardFooter class="min-w-0">
                 <!-- stop long labels from expanding the card -->
-                <Button
-                        variant="green"
-                        class="w-full min-w-0 truncate"
-                        onclick={() => Post((drive?.drive_key?.kind ?? "") + ":" + (drive?.drive_key?.value ?? ""))}
-                        title={"Adopt " + (drive?.name ?? "")}
-                >
-                    Adopt {drive.name}
-                </Button>
+                <div on:click|stopPropagation class="w-full">
+                    <Button
+                            variant="green"
+                            class="w-full min-w-0 truncate"
+                            onclick={() => Post((drive?.drive_key?.kind ?? "") + ":" + (drive?.drive_key?.value ?? ""))}
+                            title={"Adopt " + (drive?.name ?? "")}
+                    >
+                        Adopt {drive.name}
+                    </Button>
+                </div>
             </CardFooter>
         </CardRoot>
     </div>
