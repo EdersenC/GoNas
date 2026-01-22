@@ -40,17 +40,17 @@
     }
 </script>
 
-<div class="p-4 bg-zinc-800 text-zinc-100 min-h-full">
+<div class="p-4 bg-surface text-surface-foreground min-h-full">
     <h3 class="text-sm font-semibold mb-2">Create Pool</h3>
     <div class="flex flex-col gap-2">
         <label class="text-xs">Name</label>
-        <input class="p-2 rounded bg-zinc-900 text-white border border-zinc-700" bind:value={name} placeholder="Pool name" />
+        <input class="p-2 rounded bg-surface-muted text-surface-foreground border border-surface-border" bind:value={name} placeholder="Pool name" />
 
         <label class="text-xs">RAID Level</label>
-        <input type="number" class="p-2 rounded bg-zinc-900 text-white border border-zinc-700" bind:value={raidLevel} min={0} />
+        <input type="number" class="p-2 rounded bg-surface-muted text-surface-foreground border border-surface-border" bind:value={raidLevel} min={0} />
 
         <label class="text-xs">Format</label>
-        <select class="p-2 rounded bg-zinc-900 text-white border border-zinc-700" bind:value={format}>
+        <select class="p-2 rounded bg-surface-muted text-surface-foreground border border-surface-border" bind:value={format}>
             <option value="ext4">ext4</option>
             <option value="xfs">xfs</option>
             <option value="btrfs">btrfs</option>
@@ -58,9 +58,9 @@
 
         <label class="flex items-center gap-2"><input type="checkbox" bind:checked={build} /> Build</label>
 
-        <div class="text-xs text-zinc-400">Selected drives: {selected.length}</div>
+        <div class="text-xs text-muted-foreground">Selected drives: {selected.length}</div>
         {#if selected.length}
-            <ul class="text-xs list-disc ml-4 text-zinc-300">
+            <ul class="text-xs list-disc ml-4 text-muted-foreground">
                 {#each selected as d}
                     <li>{d}</li>
                 {/each}
@@ -68,8 +68,8 @@
         {/if}
 
         <div class="flex gap-2">
-            <button class="px-3 py-2 rounded bg-green-600" on:click={createPool}>Create</button>
-            <button class="px-3 py-2 rounded bg-zinc-700" on:click={() => selectedDrivesActions.clear()}>Clear</button>
+            <button class="px-3 py-2 rounded bg-success text-success-foreground hover:bg-success/90" on:click={createPool}>Create</button>
+            <button class="px-3 py-2 rounded bg-surface-muted text-surface-foreground hover:bg-surface-border" on:click={() => selectedDrivesActions.clear()}>Clear</button>
         </div>
     </div>
 </div>

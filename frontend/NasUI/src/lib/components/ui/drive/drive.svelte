@@ -48,11 +48,12 @@
     <div class="drive-card w-full max-w-full min-w-0" id={"drive-" + id}>
         <CardRoot
                 class="h-full w-full max-w-full min-w-0 flex flex-col
-           !bg-zinc-800 !text-zinc-100 text-zinc-100
-           border border-zinc-800/40 rounded-lg shadow-sm
+           !bg-panel !text-panel-foreground text-panel-foreground
+           border border-panel-border/60 rounded-lg shadow-sm
            transform transition-transform transition-shadow transition-colors
            duration-100 ease-out will-change-transform
-           hover:scale-[1.02] hover:shadow-lg hover:border-zinc-600/60 hover:ring-2 hover:ring-zinc-400/50"
+           hover:scale-[1.02] hover:shadow-lg hover:border-brand/50 hover:ring-2 hover:ring-brand/30"
+                style="--card: var(--color-panel); --card-foreground: var(--color-panel-foreground); --card-border: var(--color-panel-border);"
         >
             <CardHeader class="min-w-0">
                 <!-- min-w-0 on the flex row is critical -->
@@ -82,7 +83,7 @@
             <CardContent class="flex-1 flex flex-col gap-1 text-sm min-w-0">
                 <div class="flex justify-center mb-1 min-w-0">
                     <div class="flex flex-col gap-0 text-center min-w-0">
-                        <span class="text-zinc-100 font-bold underline text-xs">Size</span>
+                        <span class="text-surface-foreground font-bold underline text-xs">Size</span>
                         <span class="font-bold text-sm truncate">
             {formatBytes(drive?.size_bytes || 0)}
           </span>
@@ -93,7 +94,7 @@
                 <div class="flex items-center min-w-0">
                     <div class="flex-1 text-left min-w-0">
                         <div class="flex flex-col gap-1 min-w-0">
-                            <span class="text-zinc-100 font-bold underline text-xs">Used</span>
+                            <span class="text-surface-foreground font-bold underline text-xs">Used</span>
                             <span class="font-bold truncate">
               {formatBytes(used)}
             </span>
@@ -106,7 +107,7 @@
 
                     <div class="flex-1 text-center min-w-0">
                         <div class="flex flex-col gap-1 min-w-0">
-                            <span class="text-zinc-100 font-bold underline text-xs">Available</span>
+                            <span class="text-surface-foreground font-bold underline text-xs">Available</span>
                             <span class="font-bold truncate">
               {formatBytes(drive?.fsavail || 0)}
             </span>
@@ -131,7 +132,7 @@
 
 {:else}
     <div class="drive-card w-full max-w-full min-w-0" id={"drive-" + (id || "loading")}>
-        <CardRoot class="h-full w-full max-w-full min-w-0 flex flex-col !bg-zinc-800 !text-zinc-100 text-zinc-100 border border-zinc-700/25 rounded-lg shadow-sm">
+        <CardRoot class="h-full w-full max-w-full min-w-0 flex flex-col !bg-panel !text-panel-foreground text-panel-foreground border border-panel-border/60 rounded-lg shadow-sm">
             <CardContent class="flex-1 flex justify-center items-center min-w-0">
                 <span class="truncate">Loading...</span>
             </CardContent>

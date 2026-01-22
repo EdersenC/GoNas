@@ -6,7 +6,13 @@
     let { percent }: Props = $props();
 
     let color = $derived(percent < 50 ? 'green' : percent < 80 ? 'orange' : 'red');
-    let strokeColor = $derived(color === 'green' ? '#22c55e' : color === 'orange' ? '#f97316' : '#ef4444');
+    let strokeColor = $derived(
+        color === 'green'
+            ? 'var(--color-success)'
+            : color === 'orange'
+              ? 'var(--color-warning)'
+              : 'var(--color-danger)'
+    );
 
     const radius = 40;
     const circumference = 2 * Math.PI * radius;
@@ -21,7 +27,7 @@
             cy="50"
             r="{radius}"
             fill="none"
-            stroke="#374151"
+            stroke="var(--color-surface-border)"
             stroke-width="8"
         />
         <!-- Progress circle -->
@@ -42,7 +48,7 @@
             y="55"
             text-anchor="middle"
             font-size="16"
-            fill="#f4f4f5"
+            fill="var(--color-surface-foreground)"
             font-weight="bold"
         >
             {Math.round(percent)}%

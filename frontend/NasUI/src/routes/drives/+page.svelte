@@ -45,7 +45,7 @@
     }
 
     .subtitle {
-        color: #6b7280;
+        color: var(--color-muted-foreground);
         margin: 0;
     }
 
@@ -65,9 +65,9 @@
     .empty-state {
         text-align: center;
         padding: 3rem;
-        color: #6b7280;
-        background: #f9fafb;
+        color: var(--color-muted-foreground);
+        background: var(--color-card);
         border-radius: 0.5rem;
-        border: 1px dashed #d1d5db;
+        border: 1px dashed var(--color-border);
     }
 </style>
