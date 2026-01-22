@@ -27,10 +27,13 @@
     }
 </script>
 
-<List label="Storage Pools" {loading} {error} onRefresh={loadPools}>
-    {#each Object.entries(pools) as [id, pool], i (id)}
-        <div in:scale={{ duration: 300, delay: i * 50, start: 0.8 }}>
-            <UIPool {pool} {id} />
-        </div>
-    {/each}
+<List label="Storage Pools" {loading} {error} onRefresh={loadPools} maxColumns={2}>
+    {#snippet children({ maxItems })}
+        {@const poolEntries = Object.entries(pools)}
+        {#each poolEntries.slice(0, maxItems ?? poolEntries.length) as [id, pool], i (id)}
+            <div in:scale={{ duration: 300, delay: i * 50, start: 0.8 }}>
+                <UIPool {pool} {id} />
+            </div>
+        {/each}
+    {/snippet}
 </List>

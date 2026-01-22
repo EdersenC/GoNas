@@ -9,18 +9,26 @@
         label?: string;
         loading?: boolean;
         error?: string | null;
+        maxColumns?: number;
+        maxRows?: number | null;
         onRefresh?: () => void | Promise<void>;
-        children?: import('svelte').Snippet;
+        children?: import('svelte').Snippet<[{ maxItems: number | null }]>;
     }
 
     let {
         label = "Content",
         loading = false,
         error = null,
+        maxColumns = 4,
+        maxRows = null,
         ratio = 2,
         onRefresh,
         children
     }: Props = $props();
+
+    let maxItems = $derived(
+        maxRows == null ? null : Math.max(0, Math.floor(maxRows) * Math.max(1, Math.floor(maxColumns)))
+    );
 
     async function handleRefresh() {
         if (onRefresh) {
@@ -73,9 +81,12 @@
                         {:else}
                             <div class="min-h-0" in:fade={{ duration: 300 }}>
                                 <!-- Your grid/list wrapper -->
-                                <div class="content-grid min-h-0 pb-2">
+                                <div
+                                    class="content-grid min-h-0 pb-2"
+                                    style={`--list-max-columns: ${maxColumns};`}
+                                >
                                     {#if children}
-                                        {@render children()}
+                                        {@render children({ maxItems })}
                                     {:else}
                                         <div class="empty-state" in:fade={{ duration: 300 }}>
                                             <p>No content available</p>
@@ -103,7 +114,7 @@
 
     @media (min-width: 960px) {
         .content-grid {
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(var(--list-max-columns, 4), minmax(0, 1fr));
         }
     }
 

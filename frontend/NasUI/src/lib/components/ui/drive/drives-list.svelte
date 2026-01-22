@@ -79,10 +79,13 @@
     }
 </script>
 
-<List label="Drives" {loading} {error} onRefresh={loadDrives} ratio={ratio}>
-    {#each Object.entries(drives) as [id, drive], i (id)}
-        <div in:scale={{ duration: 300, delay: i * 50, start: 0.8 }}>
-            <UIDrive drive={drive} id={i} />
-        </div>
-    {/each}
+<List label="Drives" {loading} {error} onRefresh={loadDrives} ratio={ratio} maxColumns={4}>
+    {#snippet children({ maxItems })}
+        {@const driveEntries = Object.entries(drives)}
+        {#each driveEntries.slice(0, maxItems ?? driveEntries.length) as [id, drive], i (id)}
+            <div in:scale={{ duration: 300, delay: i * 50, start: 0.8 }}>
+                <UIDrive drive={drive} id={i} />
+            </div>
+        {/each}
+    {/snippet}
 </List>
