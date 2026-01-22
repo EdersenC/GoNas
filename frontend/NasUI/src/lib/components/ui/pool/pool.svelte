@@ -35,13 +35,16 @@
 </script>
 
 <div class="pool-card" id="pool-{id}">
-    <CardRoot class="h-full w-full max-w-full min-w-0 flex flex-col !bg-zinc-800 !text-zinc-100 text-zinc-100 border border-zinc-800/40 rounded-lg shadow-sm transform transition-transform transition-shadow transition-colors duration-100 ease-out will-change-transform hover:scale-[1.02] hover:shadow-lg hover:border-zinc-600/60 hover:ring-2 hover:ring-zinc-400/50">
+    <CardRoot
+        class="h-full w-full max-w-full min-w-0 flex flex-col !bg-panel !text-panel-foreground text-panel-foreground border border-panel-border/60 rounded-lg shadow-sm transform transition-transform transition-shadow transition-colors duration-100 ease-out will-change-transform hover:scale-[1.02] hover:shadow-lg hover:border-brand/50 hover:ring-2 hover:ring-brand/30"
+        style="--card: var(--color-panel); --card-foreground: var(--color-panel-foreground); --card-border: var(--color-panel-border);"
+    >
         <CardHeader class="pb-2">
             <CardTitle class="flex items-center justify-between gap-2">
                 <span>{pool.name || 'Unnamed Pool'}</span>
                 <Status degraded={pool.status === 'degraded'} offline={pool.status === 'offline' || pool.status === 'failed'} />
             </CardTitle>
-            <CardDescription class="text-zinc-400 text-xs">
+            <CardDescription class="text-muted-foreground text-xs">
                 {pool.type || 'RAID'} • {pool.format || 'Unknown'}
             </CardDescription>
         </CardHeader>
@@ -52,13 +55,13 @@
                      <span class="text-muted-foreground">Capacity</span>
                      <span>{usagePercent}% used</span>
                  </div>
-                 <div class="h-2 bg-zinc-600 rounded-full overflow-hidden">
+                 <div class="h-2 bg-surface-muted rounded-full overflow-hidden">
                      <div
-                         class="h-full transition-all duration-300 {usagePercent > 90 ? 'bg-red-500' : usagePercent > 70 ? 'bg-yellow-500' : 'bg-blue-500'}"
+                         class="h-full transition-all duration-300 {usagePercent > 90 ? 'bg-danger' : usagePercent > 70 ? 'bg-warning' : 'bg-brand'}"
                          style="width: {usagePercent}%"
                      ></div>
                  </div>
-                 <div class="flex justify-between text-xs text-zinc-400">
+                 <div class="flex justify-between text-xs text-muted-foreground">
                      <span>{formatBytes(pool.totalCapacity - pool.availableCapacity)} used</span>
                      <span>{formatBytes(pool.totalCapacity)} total</span>
                  </div>
@@ -86,17 +89,17 @@
                      <span class="text-xs text-muted-foreground mb-1 block shrink-0">Drives ({driveCount})</span>
                      <div class="flex flex-wrap gap-2 overflow-y-auto max-h-[80px]">
                          {#each Object.values(pool.AdoptedDrives).slice(0, 6) as poolDrive}
-                             <span class="text-xs px-3 py-1.5 rounded bg-zinc-600 text-zinc-300 inline-flex items-center gap-2 max-w-[180px]">
+                             <span class="text-xs px-3 py-1.5 rounded bg-surface-muted text-surface-foreground inline-flex items-center gap-2 max-w-[180px]">
                                  <Status
                                      degraded={false}
                                      offline={poolDrive.drive.is_rotational}
                                  />
                                  <span class="truncate">{poolDrive.drive.name}</span>
-                                 <span class="text-green-500 shrink-0">({formatBytes(poolDrive.drive.size_bytes)})</span>
+                                 <span class="text-success shrink-0">({formatBytes(poolDrive.drive.size_bytes)})</span>
                              </span>
                          {/each}
                          {#if driveCount > 6}
-                             <span class="text-xs px-3 py-1.5 rounded bg-zinc-600 text-zinc-400">
+                             <span class="text-xs px-3 py-1.5 rounded bg-surface-muted text-muted-foreground">
                                  +{driveCount - 6} more
                              </span>
                          {/if}
@@ -106,7 +109,7 @@
          </CardContent>
 
          <CardFooter class="pt-2 mt-auto shrink-0">
-             <Button variant="outline" class="w-full text-zinc-300 border-zinc-500 hover:bg-zinc-600">
+             <Button variant="outline" class="w-full text-surface-foreground border-surface-border hover:bg-surface-muted">
                  Manage Pool
              </Button>
          </CardFooter>

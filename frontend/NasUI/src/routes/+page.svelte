@@ -29,7 +29,7 @@
 
 </script>
 <div
-        class="min-h-screen overflow-x-hidden bg-[#121212] text-zinc-100"
+        class="min-h-screen overflow-x-hidden bg-canvas text-canvas-foreground"
         style="--sb: clamp(14rem, 30vw, 22rem);"
 >
     <div
@@ -39,7 +39,7 @@
       : "grid-template-columns: 0 1fr;"}
     >
         <!-- Sidebar -->
-        <aside class="h-screen overflow-hidden bg-[#121212]">
+        <aside class="h-screen overflow-hidden bg-canvas">
             <SidebarProvider bind:open={myOpen} style="--sidebar-width: var(--sb);">
                 <SidebarRoot>
                     <SidebarContent>
@@ -50,7 +50,7 @@
         </aside>
 
         <!-- Main content -->
-        <main class="min-w-0 bg-[#121212]">
+        <main class="min-w-0 bg-canvas">
             <div class="h-screen overflow-y-auto overscroll-contain overflow-x-hidden">
                 <div class="pt-10 pb-48 min-w-0">
                     <DrivesList ratio={ratio} />
@@ -60,7 +60,7 @@
                     {/if}
 
                     <Footer class="pt-10 pb-[env(safe-area-inset-bottom)]">
-                        <div class="text-center text-sm text-zinc-500">
+                        <div class="text-center text-sm text-muted-foreground">
                             &copy; 2026 NasUI. All rights reserved.
                         </div>
                     </Footer>

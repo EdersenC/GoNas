@@ -5,19 +5,19 @@
 
 <style>
     :global(body) {
-        background-color: #121212;
-        color: #9e0000;
+        background-color: var(--color-canvas);
+        color: var(--color-canvas-foreground);
     }
 
     nav {
-        background-color: #2b7efc;
+        background-color: var(--color-brand);
         padding: 1rem;
         display: flex;
         gap: 1rem;
     }
 
     nav a {
-        color: #ffffff;
+        color: var(--color-brand-foreground);
         text-decoration: none;
         font-weight: bold;
     }

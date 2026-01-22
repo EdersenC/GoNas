@@ -33,25 +33,25 @@
     <div class="flex items-center justify-center px-2 sm:px-40 py-0">
         <div class="w-full">
             <Header
-                    class="p-2 bg-transparent text-blue-500 flex items-center justify-between gap-2"
+                    class="p-2 bg-transparent text-brand flex items-center justify-between gap-2"
             >
                 <span class="text-2xl font-bold tracking-wide">{label}</span>
 
                 {#if onRefresh}
                     <ReloadButton
-                            class="ml-auto text-blue-500 hover:text-blue-400"
+                            class="ml-auto text-brand hover:text-brand/80"
                             onclick={handleRefresh}
                             isSpinning={loading}
                     />
                 {/if}
             </Header>
 
-            <AspectRatio ratio={ratio} class="bg-[#121212] overflow-hidden rounded-lg">
+            <AspectRatio ratio={ratio} class="bg-canvas overflow-hidden rounded-lg">
                 <!-- Ratio box -->
-                <div class="h-full flex flex-col min-h-0 bg-[#121212]">
+                <div class="h-full flex flex-col min-h-0 bg-canvas">
                     <!-- Scroll surface (ALWAYS present) -->
                     <div
-                            class="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-[#121212]"
+                            class="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-canvas"
                             style="padding-bottom: calc(6rem + env(safe-area-inset-bottom));"
                     >
                         {#if loading}
@@ -59,7 +59,7 @@
                                     class="min-h-full flex items-center justify-center"
                                     in:fade={{ duration: 200 }}
                             >
-                                <Spinner class="size-20 text-blue-500" />
+                                <Spinner class="size-20 text-brand" />
                             </div>
 
                         {:else if error}
@@ -92,13 +92,13 @@
 </div>
 
 <style>
-    .content-grid {
+.content-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 1.5rem;
         padding: 1.5rem;
         max-width: 100%;
-        background-color: #121212;
+        background-color: var(--color-canvas);
     }
 
     @media (min-width: 960px) {
@@ -110,9 +110,9 @@
     .empty-state {
         text-align: center;
         padding: 3rem;
-        color: #6b7280;
-        background: #f9fafb;
+        color: var(--color-muted-foreground);
+        background: var(--color-card);
         border-radius: 0.5rem;
-        border: 1px dashed #d1d5db;
+        border: 1px dashed var(--color-border);
     }
 </style>

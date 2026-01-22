@@ -38,7 +38,7 @@
 <button
     class={cn(
         "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors",
-        "hover:bg-zinc-700 hover:text-zinc-100",
+        "hover:bg-surface-muted hover:text-surface-foreground",
         "disabled:pointer-events-none disabled:opacity-50",
         "h-9 w-9 p-0",
         className
@@ -79,4 +79,3 @@
         animation-fill-mode: forwards;
     }
 </style>
-
