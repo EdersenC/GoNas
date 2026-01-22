@@ -59,6 +59,7 @@ func (s *Server) Start() error {
 	if err != nil {
 		return nil
 	}
+	log.Println("Server started on", s.httpServer.Addr)
 	return nil
 }
 

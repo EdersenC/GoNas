@@ -29,10 +29,28 @@ func main() {
 		log.Fatalf("Error initializing database schema: %v", err)
 	}
 
-	server := api.NewAPIServer(":8080", db)
+	server := api.NewAPIServer(parsePort(), db)
 	if err = run(server); err != nil {
 		log.Fatalf("Error running server: %v", err)
 	}
+}
+
+func parsePort() string {
+	port := ":8080"
+	if len(os.Args) > 1 {
+		port = os.Args[1]
+		hasColon := false
+		for i := 0; i < len(port); i++ {
+			if port[i] == ':' {
+				hasColon = true
+				break
+			}
+		}
+		if !hasColon && len(port) > 0 {
+			port = ":" + port
+		}
+	}
+	return port
 }
 
 func run(server *api.Server) error {
