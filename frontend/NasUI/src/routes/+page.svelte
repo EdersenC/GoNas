@@ -7,6 +7,7 @@
     import PoolCreator from "$lib/components/ui/sidebar/sidebar-pool-creator.svelte";
     import { onMount } from 'svelte';
     import {Footer} from "$lib/components/ui/card/index.js";
+    import {poolSelection} from "$lib/state/pool.svelte.js";
 
     let isSideBarOpened = $state(false);
     let poolCreatorMode = $derived(isSideBarOpened);
@@ -16,6 +17,8 @@
     function openSidebar() {
         isSideBarOpened = !isSideBarOpened;
         ratio = isSideBarOpened ? 1.5 : 2;
+        if (!isSideBarOpened)
+            poolSelection.clearSelectedDrives()
         if (isSideBarOpened) {
             document.documentElement.style.overflow = "hidden";
             document.body.style.overflow = "hidden";
@@ -24,6 +27,7 @@
             document.body.style.overflow = "";
         }
     }
+
 
 
 
@@ -44,7 +48,7 @@
             <SidebarProvider bind:open={isSideBarOpened} style="--sidebar-width: var(--sb);">
                 <SidebarRoot>
                     <SidebarContent>
-                        <PoolCreator />
+                        <PoolCreator poolSelection={poolSelection} />
                     </SidebarContent>
                 </SidebarRoot>
             </SidebarProvider>
@@ -53,8 +57,9 @@
         <!-- Main content -->
         <main class="min-w-0 bg-canvas">
             <div class="h-screen overflow-y-auto overscroll-contain overflow-x-hidden">
+                {poolSelection.getSelectedDrives().length}
                 <div class="pt-10 pb-48 min-w-0">
-                    <DrivesList ratio={ratio} poolCreatorMode={poolCreatorMode} />
+                    <DrivesList ratio={ratio} poolCreatorMode={poolCreatorMode} poolSelection={poolSelection} />
 
                     {#if !isSideBarOpened}
                         <PoolsList />

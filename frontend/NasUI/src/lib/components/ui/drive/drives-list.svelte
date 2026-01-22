@@ -5,13 +5,16 @@
     import { onMount } from 'svelte';
     import { scale } from 'svelte/transition';
     import List from './list.svelte';
+    import type {PoolSelection} from "$lib/models/pool.js";
 
     // Cache drives data to prevent refetching on every mount
 
     let {
         ratio,
         poolCreatorMode,
+        poolSelection,
     } = $props();
+
 
     let cachedDrives: Record<string, Drive> | null = null;
     let cacheLoading = false;
@@ -32,6 +35,9 @@
         }
     });
 
+
+
+
     async function loadDrives() {
         cacheLoading = true;
         loading = true;
@@ -39,6 +45,7 @@
         try {
             if (window.location.pathname.endsWith("/drives")) {
                 drives = await fetchSystemDrives();
+                adopted = false;
             }else {
                 let adoptedDrives:AdoptedDrive = await fetchAdoptedDrives();
                 for (const [key, drive] of Object.entries(adoptedDrives)) {
@@ -82,7 +89,12 @@
 <List label="Drives" {loading} {error} onRefresh={loadDrives} ratio={ratio} >
     {#each Object.entries(drives) as [id, drive], i (id)}
         <div in:scale={{ duration: 300, delay: i * 50, start: 0.8 }}>
-            <UIDrive drive={drive} id={i} poolCreatorMode={poolCreatorMode}/>
+            <UIDrive
+                    adopted={adopted}
+                    drive={drive} ]
+                    id={i}
+                    poolCreatorMode={poolCreatorMode}
+                    poolSelection={poolSelection}/>
         </div>
     {/each}
 </List>

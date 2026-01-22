@@ -1,16 +1,29 @@
 <script lang="ts">
+    import {PoolSelection} from "$lib/state/pool.svelte.js";
+
     let name = $state('');
     let raidLevel = $state(10);
     let format = $state('ext4');
     let build = $state(false);
 
-    let selected: string[] = [];
+    type Props = {
+        poolSelection: PoolSelection;
+    };
+    let {
+        poolSelection
+    }:Props = $props();
+
 
     async function createPool() {
+        if (poolSelection.selectedDrives.length === 0) {
+            console.warn('No drives selected for pool creation');
+            return;
+        }
+        console.log('Selected drives for pool creation', poolSelection.getSelectedDrives());
         const payload = {
             name,
             raidLevel,
-            drives: selected,
+            drives: poolSelection.selectedDrives,
             format,
             build,
         };
@@ -52,10 +65,10 @@
 
         <label class="flex items-center gap-2"><input type="checkbox" bind:checked={build} /> Build</label>
 
-        <div class="text-xs text-muted-foreground">Selected drives: {selected.length}</div>
-        {#if selected.length}
+        <div class="text-xs text-muted-foreground">Selected drives: {poolSelection.selectedDrives.length}</div>
+        {#if true}
             <ul class="text-xs list-disc ml-4 text-muted-foreground">
-                {#each selected as d}
+                {#each poolSelection.selectedDrives as d}
                     <li>{d}</li>
                 {/each}
             </ul>
@@ -65,7 +78,7 @@
             <button class="px-3 py-2 rounded bg-success text-success-foreground hover:bg-success/90"
                     onclick={createPool}>Create</button>
             <button class="px-3 py-2 rounded bg-surface-muted text-surface-foreground hover:bg-surface-muted/80"
-                    onclick={() => {console.log("clear me")}}>Clear</button>
+                    onclick={poolSelection.clearSelectedDrives}>Clear</button>
         </div>
     </div>
 </div>

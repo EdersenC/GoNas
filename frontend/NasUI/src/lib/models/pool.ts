@@ -32,4 +32,3 @@ export async function fetchPools(): Promise<Record<string, Pool>> {
     return data.data as Record<string, Pool>;
 }
 
-
