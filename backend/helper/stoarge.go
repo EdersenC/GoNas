@@ -167,8 +167,8 @@ func CheckRaidLevel(level int, drives int) error {
 
 var DefaultMountPoint = "/mnt/pools"
 
-// BuildMadam runs mdadm with the provided args to create a RAID array.
-func BuildMadam(args []string) error {
+// BuildMdadm runs mdadm with the provided args to create a RAID array.
+func BuildMdadm(args []string) error {
 	if err := installMdadm(); err != nil {
 		return err
 	}
