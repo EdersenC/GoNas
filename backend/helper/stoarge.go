@@ -26,6 +26,7 @@ var (
 	ErrUnsupportedRaidLevel = errors.New("unsupported raid level")
 )
 
+// Contains reports whether val is contained within any element of list.
 func Contains(list []string, val string) bool {
 	for _, v := range list {
 		if strings.Contains(val, v) {
@@ -49,6 +50,7 @@ func StripTrailingDigits(s string) string {
 	return s[:i]
 }
 
+// CreateLoopDevice creates file-backed loop devices for testing.
 func CreateLoopDevice(size string, amount int) error {
 	name := "testDrive"
 	if strings.TrimSpace(size) == "" {
@@ -81,7 +83,7 @@ func CreateLoopDevice(size string, amount int) error {
 	return nil
 }
 
-// InstallMdadm ensures mdadm is installed on the system.
+// installMdadm ensures mdadm is installed on the system.
 func installMdadm() error {
 	// Check if mdadm already exists
 	if _, err := exec.LookPath("mdadm"); err == nil {
@@ -128,12 +130,13 @@ func installMdadm() error {
 	return nil
 }
 
-// commandExists checks if a command is available in PATH
+// commandExists checks if a command is available in PATH.
 func commandExists(cmd string) bool {
 	_, err := exec.LookPath(cmd)
 	return err == nil
 }
 
+// CheckRaidLevel validates RAID level constraints against drive count.
 func CheckRaidLevel(level int, drives int) error {
 	switch level {
 	case 0:
@@ -164,6 +167,7 @@ func CheckRaidLevel(level int, drives int) error {
 
 var DefaultMountPoint = "/mnt/pools"
 
+// BuildMadam runs mdadm with the provided args to create a RAID array.
 func BuildMadam(args []string) error {
 	if err := installMdadm(); err != nil {
 		return err

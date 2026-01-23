@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// poolError writes a pool-related error response with the appropriate status.
 func (n *Nas) poolError(err error, c *gin.Context) {
 	message := gin.H{"error": err.Error()}
 	switch err {
@@ -44,6 +45,7 @@ func (n *Nas) poolError(err error, c *gin.Context) {
 	}
 }
 
+// driveError writes a drive-related error response with the appropriate status.
 func (n *Nas) driveError(err error, c *gin.Context) {
 	message := gin.H{"error": err.Error()}
 	switch err {
@@ -62,11 +64,13 @@ func (n *Nas) driveError(err error, c *gin.Context) {
 	}
 }
 
+// listAdoptedDrives returns all adopted drives.
 func listAdoptedDrives(c *gin.Context) {
 	SuccessResponse(c, NAS.AdoptedDrives)
 }
 
 // Todo Make UUID System for drives
+// adoptDrive adopts a system drive by its key.
 func adoptDrive(c *gin.Context) {
 	key := c.Param("key")
 	driveToAdopt, err := NAS.AdoptDriveByKey(key, c)
@@ -77,6 +81,7 @@ func adoptDrive(c *gin.Context) {
 	SuccessResponse(c, driveToAdopt)
 }
 
+// listDrives returns known drives, optionally rescanning system devices.
 func listDrives(c *gin.Context, rescan bool) {
 	if len(NAS.SystemDrives) == 0 || rescan {
 		NAS.SystemDrives = storage.GetSystemDriveMap()
@@ -84,10 +89,12 @@ func listDrives(c *gin.Context, rescan bool) {
 	SuccessResponse(c, NAS.SystemDrives)
 }
 
+// listPools returns all pools from memory.
 func listPools(c *gin.Context) {
 	SuccessResponse(c, NAS.POOLS)
 }
 
+// createPool validates input, persists, and optionally builds a pool.
 func createPool(c *gin.Context) {
 	var req struct {
 		Name      string   `json:"name" binding:"required"`
@@ -129,6 +136,7 @@ func createPool(c *gin.Context) {
 	SuccessResponse(c, pool.Uuid)
 }
 
+// deletePool removes the pool from the database and memory.
 func deletePool(c *gin.Context) {
 	uuid := c.Param("uuid")
 	pool, err := NAS.POOLS.GetPool(uuid)
@@ -151,6 +159,7 @@ func deletePool(c *gin.Context) {
 	SuccessResponse(c, gin.H{"deleted": pool.Uuid})
 }
 
+// getPool returns a pool by UUID.
 func getPool(c *gin.Context) {
 	uuid := c.Param("uuid")
 	pool, err := NAS.POOLS.GetPool(uuid)
@@ -161,6 +170,7 @@ func getPool(c *gin.Context) {
 	SuccessResponse(c, pool)
 }
 
+// updatePool applies a patch to a pool in storage and memory.
 func updatePool(c *gin.Context) {
 	uuid := c.Param("uuid")
 	pool, err := NAS.POOLS.GetPool(uuid)
@@ -192,6 +202,7 @@ func updatePool(c *gin.Context) {
 	SuccessResponse(c, updatedPool)
 }
 
+// buildPool builds an existing pool and persists its mount point.
 func buildPool(c *gin.Context) {
 	uuid := c.Param("uuid")
 	pool, err := NAS.POOLS.GetPool(uuid)
@@ -212,6 +223,7 @@ func buildPool(c *gin.Context) {
 	}
 	SuccessResponse(c, gin.H{"built": pool.Uuid})
 }
+// SuccessResponse writes a standard success response envelope.
 func SuccessResponse(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "success",

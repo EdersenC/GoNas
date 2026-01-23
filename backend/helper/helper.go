@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// HumanSize formats bytes using binary units.
 func HumanSize(bytes uint64) string {
 	const unit = 1024
 	if bytes < unit {

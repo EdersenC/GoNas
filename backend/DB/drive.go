@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// InsertDrive persists a new drive record.
 func (db *DB) InsertDrive(ctx context.Context, drive *storage.DriveInfo, createdAt string) error {
 	model := &DriveModel{}
 	model.FromDriveInfo(drive, createdAt)
@@ -14,6 +15,7 @@ func (db *DB) InsertDrive(ctx context.Context, drive *storage.DriveInfo, created
 	return db.conn.WithContext(ctx).Create(model).Error
 }
 
+// QueryDriveByKey finds an adopted drive by its key.
 func (db *DB) QueryDriveByKey(ctx context.Context, key storage.DriveKey) (storage.AdoptedDrive, bool, error) {
 	var model DriveModel
 	err := db.conn.WithContext(ctx).
@@ -31,6 +33,7 @@ func (db *DB) QueryDriveByKey(ctx context.Context, key storage.DriveKey) (storag
 	return adoptedDrive, true, nil
 }
 
+// QueryAllAdoptedDrives returns all adopted drives ordered by creation time.
 func (db *DB) QueryAllAdoptedDrives(ctx context.Context) ([]storage.AdoptedDrive, error) {
 	var models []DriveModel
 	if err := db.conn.WithContext(ctx).Order("createdAt DESC").Find(&models).Error; err != nil {
@@ -50,6 +53,7 @@ type DrivePatch struct {
 	PoolID *string
 }
 
+// PatchDrive updates a drive record using the provided patch.
 func (db *DB) PatchDrive(ctx context.Context, driveUuid string, p DrivePatch) error {
 	updates := make(map[string]interface{})
 

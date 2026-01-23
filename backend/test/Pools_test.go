@@ -12,6 +12,7 @@ var drives = []*storage.DriveInfo{
 	{Name: "sdc", SizeBytes: 1000 * helper.Gigabyte, FsAvail: 400 * helper.Megabyte, Type: "HDD", Model: "WD WD10EZEX"},
 }
 
+// TestPoolSize verifies capacity calculations on a new pool.
 func TestPoolSize(t *testing.T) {
 	var pools = storage.Pools{}
 	testPool, _ := pools.NewPool("TestPool", storage.Standard, "", drives...)
@@ -25,6 +26,7 @@ func TestPoolSize(t *testing.T) {
 	}
 }
 
+// TestGetAndRemoveDrive checks pool drive add/remove behavior.
 func TestGetAndRemoveDrive(t *testing.T) {
 	var pools = storage.Pools{}
 	var err error
@@ -46,6 +48,7 @@ func TestGetAndRemoveDrive(t *testing.T) {
 	}
 }
 
+// TestGetAndDeletePool verifies pool lookup and deletion.
 func TestGetAndDeletePool(t *testing.T) {
 	var pools = storage.Pools{}
 	var err error

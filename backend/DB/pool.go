@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// InsertPool persists a new pool record.
 func (db *DB) InsertPool(ctx context.Context, pool *storage.Pool, createdAt string) error {
 	model := &PoolModel{}
 	model.FromStoragePool(pool)
@@ -15,6 +16,7 @@ func (db *DB) InsertPool(ctx context.Context, pool *storage.Pool, createdAt stri
 	return db.conn.WithContext(ctx).Create(model).Error
 }
 
+// DeletePool removes a pool record by UUID.
 func (db *DB) DeletePool(ctx context.Context, uuid string) error {
 	return db.conn.WithContext(ctx).Delete(&PoolModel{}, "uuid = ?", uuid).Error
 }
@@ -25,6 +27,7 @@ type PoolPatch struct {
 	Format string         `json:"format"`
 }
 
+// applyPoolPatch returns a modified copy of the pool based on the patch.
 func applyPoolPatch(pool *storage.Pool, patch *PoolPatch) (updatedPool *storage.Pool) {
 	updatedPool = pool.Clone()
 
@@ -47,12 +50,14 @@ func applyPoolPatch(pool *storage.Pool, patch *PoolPatch) (updatedPool *storage.
 	return
 }
 
+// PatchPoolMount updates the mount point for a pool record.
 func (db *DB) PatchPoolMount(uuid, mount string) error {
 	return db.conn.Model(&PoolModel{}).
 		Where("uuid = ?", uuid).
 		Update("mountPoint", mount).Error
 }
 
+// PatchPool applies a patch to a pool and persists changes.
 func (db *DB) PatchPool(ctx context.Context, pool *storage.Pool, patch *PoolPatch) (*storage.Pool, error) {
 	updatedPool := applyPoolPatch(pool, patch)
 
@@ -86,6 +91,7 @@ func (db *DB) PatchPool(ctx context.Context, pool *storage.Pool, patch *PoolPatc
 	return updatedPool, nil
 }
 
+// QueryAllPools returns all pools indexed by UUID.
 func (db *DB) QueryAllPools(ctx context.Context) (map[string]storage.Pool, error) {
 	var models []PoolModel
 	if err := db.conn.WithContext(ctx).Order("createdAt DESC").Find(&models).Error; err != nil {

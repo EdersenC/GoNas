@@ -13,6 +13,7 @@ type DB struct {
 	conn *gorm.DB
 }
 
+// NewDB initializes the database and returns a DB wrapper.
 func NewDB(path string) *DB {
 	db, err := Init(path)
 	if err != nil {
@@ -21,6 +22,7 @@ func NewDB(path string) *DB {
 	return &DB{conn: db}
 }
 
+// Close releases the underlying SQL connection.
 func (db *DB) Close() error {
 	sqlDB, err := db.conn.DB()
 	if err != nil {
@@ -29,6 +31,7 @@ func (db *DB) Close() error {
 	return sqlDB.Close()
 }
 
+// Init opens the SQLite database with required pragmas.
 func Init(path string) (*gorm.DB, error) {
 	// Configure GORM with SQLite driver and pragmas
 	dsn := fmt.Sprintf("file:%s?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)", path)
@@ -58,6 +61,7 @@ func Init(path string) (*gorm.DB, error) {
 	return db, nil
 }
 
+// InitSchema creates or updates tables for pools and drives.
 func (db *DB) InitSchema(ctx context.Context) error {
 	// Use GORM AutoMigrate to create tables with foreign key constraints
 	// The Pool relationship in DriveModel will ensure the foreign key is created

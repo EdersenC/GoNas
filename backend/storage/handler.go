@@ -17,6 +17,7 @@ type DriveKey struct {
 	Value string `json:"value"`
 }
 
+// String returns the drive key in Kind:Value form.
 func (k DriveKey) String() string { return k.Kind + ":" + k.Value }
 
 type DriveInfo struct {
@@ -41,10 +42,13 @@ type DriveInfo struct {
 	FsAvail           uint64       `json:"fsavail"`
 }
 
+// GetUuid returns the drive UUID.
 func (d *DriveInfo) GetUuid() string { return d.Uuid }
 
+// SetUuid sets the drive UUID.
 func (d *DriveInfo) SetUuid(uuid string) { d.Uuid = uuid }
 
+// generateDriveKey selects a stable identifier for the drive.
 func (d *DriveInfo) generateDriveKey() {
 	key, ok := pickBestByID(d.ByIds)
 	if !ok && len(d.Wwid) > 0 {
@@ -80,6 +84,7 @@ type DriveFilter struct {
 	MaxFsAvail   uint64
 }
 
+// FilterFor returns drives matching the provided filter criteria.
 func FilterFor(f DriveFilter, d ...*DriveInfo) []*DriveInfo {
 	// Precompute small things to avoid recomputing inside loop
 	hasNames := len(f.Names) > 0
@@ -141,6 +146,7 @@ func FilterFor(f DriveFilter, d ...*DriveInfo) []*DriveInfo {
 	return result
 }
 
+// GetDrives enumerates block devices and returns populated drive metadata.
 func GetDrives() ([]*DriveInfo, error) {
 	basePath := "/sys/block"
 	entries, err := os.ReadDir(basePath)
@@ -217,6 +223,7 @@ func GetDrives() ([]*DriveInfo, error) {
 	return drives, nil
 }
 
+// symlinksPointingToDev finds /dev/disk/by-* entries pointing at a device name.
 func symlinksPointingToDev(dir string, devBase string) ([]string, error) {
 	ents, err := os.ReadDir(dir)
 	if err != nil {
@@ -238,6 +245,7 @@ func symlinksPointingToDev(dir string, devBase string) ([]string, error) {
 	return out, nil
 }
 
+// pickBestByID selects the most stable by-id entry for a drive.
 func pickBestByID(byIDs []string) (DriveKey, bool) {
 	preferPrefixes := []string{
 		"wwn-",       // excellent for rotational/SAS/SATA
@@ -257,6 +265,7 @@ func pickBestByID(byIDs []string) (DriveKey, bool) {
 	return DriveKey{}, false
 }
 
+// readUint reads a uint64 from a sysfs file, returning 0 on error.
 func readUint(path string) uint64 {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -266,6 +275,7 @@ func readUint(path string) uint64 {
 	return val
 }
 
+// readString reads and trims a sysfs file, returning empty on error.
 func readString(path string) string {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -274,6 +284,7 @@ func readString(path string) string {
 	return strings.TrimSpace(string(data))
 }
 
+// parsePartitions maps parent block devices to their mounted partitions.
 func parsePartitions(path string) map[string][]*Partition {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -302,6 +313,7 @@ func parsePartitions(path string) map[string][]*Partition {
 	return partitions
 }
 
+// getFsAvailable returns available bytes for a mount point.
 func getFsAvailable(mount string) uint64 {
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(mount, &stat); err != nil {
