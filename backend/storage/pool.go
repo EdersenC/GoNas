@@ -199,7 +199,7 @@ func (p *Pools) NewPool(name string, poolType PoolType, format string, drives ..
 	return NewPool(name, poolType, format, drives...)
 }
 
-// CreateAndAddPool builds a new pool and stores it in the Pools map.
+// CreateAndAddPool creates a new pool and stores it in the Pools map.
 func (p *Pools) CreateAndAddPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
 	pool, err := p.NewPool(name, poolType, format, drives...)
 	if err != nil {
