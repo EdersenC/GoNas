@@ -22,6 +22,7 @@ type Server struct {
 
 var SERVER = &Server{}
 
+// NewAPIServer configures a gin server and returns the API server wrapper.
 func NewAPIServer(addr string, db *DB.DB) *Server {
 	NAS = &Nas{POOLS: &storage.Pools{}}
 	r := gin.New()
@@ -47,6 +48,7 @@ func NewAPIServer(addr string, db *DB.DB) *Server {
 	SERVER = server
 	return server
 }
+// Start loads data and begins serving HTTP requests.
 func (s *Server) Start() error {
 	s.Nas.SystemDrives = storage.GetSystemDriveMap()
 	go func() {
@@ -63,10 +65,12 @@ func (s *Server) Start() error {
 	return nil
 }
 
+// Shutdown gracefully stops the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
+// LoadData hydrates in-memory pools and adopted drives from the database.
 func (s *Server) LoadData(c context.Context) error {
 	err := s.Nas.LoadPools(c)
 	if err != nil {
@@ -87,6 +91,7 @@ type Nas struct {
 
 var NAS = &Nas{}
 
+// LoadAdoptedDrives loads adopted drives and associates them with pools.
 func (n *Nas) LoadAdoptedDrives(c context.Context) error {
 	adoptedDrives, err := SERVER.Db.QueryAllAdoptedDrives(c)
 	if err != nil {
@@ -103,6 +108,7 @@ func (n *Nas) LoadAdoptedDrives(c context.Context) error {
 	return nil
 }
 
+// ClaimDrive merges a persisted adopted drive with the current system drive.
 func (n *Nas) ClaimDrive(drive *storage.DriveInfo, adoptedDrive storage.AdoptedDrive) error {
 	if drive == nil {
 		return storage.ErrDriveNotFound
@@ -124,6 +130,7 @@ func (n *Nas) ClaimDrive(drive *storage.DriveInfo, adoptedDrive storage.AdoptedD
 	return nil
 }
 
+// LoadPools loads persisted pools into memory.
 func (n *Nas) LoadPools(c context.Context) error {
 	pools, err := SERVER.Db.QueryAllPools(c)
 	if err != nil {
@@ -139,6 +146,7 @@ func (n *Nas) LoadPools(c context.Context) error {
 	return nil
 }
 
+// updatePool replaces a pool entry in memory.
 func (n *Nas) updatePool(pool *storage.Pool) error {
 	if _, exists := (*n.POOLS)[pool.Uuid]; !exists {
 		return storage.ErrPoolNotInMemory
@@ -147,6 +155,7 @@ func (n *Nas) updatePool(pool *storage.Pool) error {
 	return nil
 }
 
+// deletePool removes a pool and returns adopted drives to the available set.
 func (n *Nas) deletePool(p *storage.Pool) error {
 	adoptedDrives := p.AdoptedDrives
 	for _, adopt := range adoptedDrives {
@@ -176,6 +185,7 @@ func (n *Nas) GetAdoptedDriveByKey(key string) *storage.AdoptedDrive {
 	return nil
 }
 
+// GetDriveByUuid returns an adopted drive's DriveInfo by UUID.
 func (n *Nas) GetDriveByUuid(id string) *storage.DriveInfo {
 	if drive, exists := n.AdoptedDrives[id]; exists {
 		return drive.Drive
@@ -193,6 +203,7 @@ func (n *Nas) getDriveByKey(key string) *storage.DriveInfo {
 	return nil
 }
 
+// ensureUniqueKeys returns an error if any keys are duplicated.
 func ensureUniqueKeys(keys ...string) error {
 	keySet := make(map[string]bool)
 	for _, key := range keys {
@@ -204,6 +215,7 @@ func ensureUniqueKeys(keys ...string) error {
 	return nil
 }
 
+// AddPool adds the pool to memory and persists pool ownership on drives.
 func (n *Nas) AddPool(p *storage.Pool, c *gin.Context) error {
 	err := n.POOLS.AddPool(p)
 	if err != nil {
@@ -223,6 +235,7 @@ func (n *Nas) AddPool(p *storage.Pool, c *gin.Context) error {
 	return nil
 }
 
+// AreDrivesAlreadyInPool checks whether any drive UUID already has a pool.
 func (n *Nas) AreDrivesAlreadyInPool(d []string) (string, bool) {
 	for _, uuid := range d {
 		adoptedDrive, ok := n.AdoptedDrives[uuid]
@@ -293,6 +306,7 @@ func (n *Nas) AdoptDriveByKey(key string, c *gin.Context) (*storage.AdoptedDrive
 	return adoptedDrive, nil
 }
 
+// ValidatePoolPatch validates patch fields before persistence.
 func (n *Nas) ValidatePoolPatch(patch *DB.PoolPatch) error {
 	if patch.Status != "" {
 		err := storage.ValidateStatus(patch.Status)

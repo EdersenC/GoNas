@@ -23,10 +23,12 @@ type Raid struct {
 	Level int
 }
 
+// Value returns the string representation of the RAID level.
 func (r *Raid) Value() string {
 	return fmt.Sprintf("raid%d", r.Level)
 }
 
+// Build creates and formats a RAID pool for the provided Pool.
 func (r *Raid) Build(p *Pool) error {
 	if err := helper.CheckRaidLevel(r.Level, len(p.AdoptedDrives)); err != nil {
 		return err
@@ -51,7 +53,7 @@ func (r *Raid) Build(p *Pool) error {
 		drives...,
 	)
 
-	err := helper.BuildMadam(args)
+	err := helper.BuildMdadm(args)
 	if err != nil {
 		return err
 	}
@@ -73,6 +75,7 @@ func (r *Raid) Build(p *Pool) error {
 	return nil
 }
 
+// ParsePoolType parses a pool type string into a PoolType implementation.
 func ParsePoolType(value string) (PoolType, error) {
 	switch value {
 	case "standard":
@@ -104,6 +107,7 @@ func (s Status) ToLower() Status {
 	return Status(strings.ToLower(string(s)))
 }
 
+// ValidateStatus returns an error if the status is not recognized.
 func ValidateStatus(status Status) error {
 	switch status.ToLower() {
 	case Healthy.ToLower(), Degraded.ToLower(), Offline.ToLower():
@@ -127,6 +131,7 @@ type Pool struct {
 	AdoptedDrives     map[string]*AdoptedDrive
 }
 
+// ShortUuid returns the first length characters of a UUID string.
 func ShortUuid(length int, uuid string) (string, error) {
 	if len(uuid) < length {
 		return "", ErrUuidTooShort
@@ -136,6 +141,7 @@ func ShortUuid(length int, uuid string) (string, error) {
 
 const SHORTUUIDLEN = 16
 
+// NewPool constructs a pool with adopted drives and a generated UUID.
 func NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
 	poolMap := make(map[string]*AdoptedDrive)
 	poolId := uuid.New().String()
@@ -161,6 +167,7 @@ func NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo
 	return &pool, nil
 }
 
+// Clone returns a shallow copy of the pool metadata.
 func (p *Pool) Clone() *Pool {
 	return &Pool{
 		Name:              p.Name,
@@ -187,10 +194,12 @@ func (p *Pools) GetPool(uuid string) (*Pool, error) {
 	return pool, nil
 }
 
+// NewPool constructs a pool without persisting it in the Pools map.
 func (p *Pools) NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
 	return NewPool(name, poolType, format, drives...)
 }
 
+// CreateAndAddPool creates a new pool and stores it in the Pools map.
 func (p *Pools) CreateAndAddPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
 	pool, err := p.NewPool(name, poolType, format, drives...)
 	if err != nil {
@@ -203,6 +212,7 @@ func (p *Pools) CreateAndAddPool(name string, poolType PoolType, format string, 
 	return pool, nil
 }
 
+// AddPool inserts a pool into the Pools map.
 func (p *Pools) AddPool(pool *Pool) error {
 	if _, exists := (*p)[pool.Uuid]; exists {
 		return ErrPoolAlreadyExists
@@ -211,6 +221,7 @@ func (p *Pools) AddPool(pool *Pool) error {
 	return nil
 }
 
+// DeletePool removes the pool and deletes backing resources when present.
 func (p *Pools) DeletePool(uuid string) error {
 	pool, err := p.GetPool(uuid)
 	if err != nil {
@@ -227,10 +238,12 @@ func (p *Pools) DeletePool(uuid string) error {
 	return nil
 }
 
+// Build constructs the pool using its configured PoolType.
 func (p *Pool) Build() error {
 	return p.Type.Build(p)
 }
 
+// AddDrives adopts and adds drives to the pool.
 func (p *Pool) AddDrives(drive ...*DriveInfo) {
 	for i := range drive {
 		adoptedDrive := NewAdoptedDrive(drive[i])
@@ -239,6 +252,7 @@ func (p *Pool) AddDrives(drive ...*DriveInfo) {
 	}
 }
 
+// GetDrives returns drives in the pool matching the provided UUIDs.
 func (p *Pool) GetDrives(uuids ...string) []*DriveInfo {
 	var drives = make([]*DriveInfo, 0)
 	for i := range p.AdoptedDrives {
@@ -252,6 +266,7 @@ func (p *Pool) GetDrives(uuids ...string) []*DriveInfo {
 	return drives
 }
 
+// RemoveDrives deletes adopted drives by UUID from the pool.
 func (p *Pool) RemoveDrives(uuids ...string) error {
 	toRemove := make(map[string]bool, len(uuids))
 	for _, id := range uuids {
@@ -270,6 +285,7 @@ func (p *Pool) RemoveDrives(uuids ...string) error {
 	return nil
 }
 
+// UnmountDrive unmounts and removes the pool mount point directory.
 func (p *Pool) UnmountDrive() error {
 	if err := exec.Command("sudo", "umount", p.MountPoint).Run(); err != nil {
 		return fmt.Errorf("failed to unmount pool: %w", err)
@@ -280,6 +296,7 @@ func (p *Pool) UnmountDrive() error {
 	return nil
 }
 
+// Delete tears down the RAID device and clears superblocks from member drives.
 func (p *Pool) Delete() error {
 	if p.Status != Offline {
 		return ErrPoolNotOffline
@@ -312,18 +329,22 @@ func (p *Pool) Delete() error {
 	return nil
 }
 
+// SetName updates the pool name.
 func (p *Pool) SetName(name string) {
 	p.Name = name
 }
 
+// SetStatus updates the pool status.
 func (p *Pool) SetStatus(status Status) {
 	p.Status = status
 }
 
+// SetFormat updates the pool filesystem format.
 func (p *Pool) SetFormat(format string) {
 	p.Format = format
 }
 
+// GetPoolCapacity reads total and available bytes for a device via df.
 func GetPoolCapacity(device string) (total uint64, avail uint64, err error) {
 	cmd := exec.Command("df", "-B1", "--output=source,size,used,avail,pcent", device)
 	out, err := cmd.Output()
@@ -358,6 +379,7 @@ func GetPoolCapacity(device string) (total uint64, avail uint64, err error) {
 	return total, avail, nil
 }
 
+// CalculateTotalCapacity updates TotalCapacity from the pool device.
 func (p *Pool) CalculateTotalCapacity() {
 	total, _, err := GetPoolCapacity(p.MdDevice)
 	if err != nil {
@@ -367,6 +389,7 @@ func (p *Pool) CalculateTotalCapacity() {
 	p.TotalCapacity = total
 }
 
+// CalculateAvailableCapacity updates AvailableCapacity from the pool device.
 func (p *Pool) CalculateAvailableCapacity() {
 	_, avail, err := GetPoolCapacity(p.MdDevice)
 	if err != nil {
@@ -376,6 +399,7 @@ func (p *Pool) CalculateAvailableCapacity() {
 	p.AvailableCapacity = avail
 }
 
+// ValidatePoolFormat ensures the requested filesystem format is supported.
 func ValidatePoolFormat(format string) error {
 	supportedFormats := []string{"ext4", "xfs", "btrfs"}
 	for _, f := range supportedFormats {

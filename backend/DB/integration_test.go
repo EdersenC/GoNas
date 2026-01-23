@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// TestDatabaseOperations exercises pool/drive CRUD and FK behavior.
 func TestDatabaseOperations(t *testing.T) {
 	// Create a temporary database file using t.TempDir() for automatic cleanup
 	tmpDir := t.TempDir()

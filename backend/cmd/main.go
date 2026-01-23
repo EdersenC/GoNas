@@ -15,6 +15,7 @@ import (
 	"time"
 )
 
+// main wires dependencies, initializes the database, and starts the API server.
 func main() {
 	db := DB.NewDB("Drives.db")
 	defer func() {
@@ -35,6 +36,7 @@ func main() {
 	}
 }
 
+// parsePort returns the HTTP listen address from argv or the default :8080.
 func parsePort() string {
 	port := ":8080"
 	if len(os.Args) > 1 {
@@ -53,6 +55,7 @@ func parsePort() string {
 	return port
 }
 
+// run prepares loop devices, starts the server, and blocks for shutdown signals.
 func run(server *api.Server) error {
 	if err := helper.CreateLoopDevice("100G", 4); err != nil {
 		return err
@@ -89,6 +92,7 @@ func run(server *api.Server) error {
 	return nil
 }
 
+// runServer launches the HTTP server in a background goroutine.
 func runServer(server *api.Server) {
 	go func() {
 		err := server.Start()
@@ -98,6 +102,7 @@ func runServer(server *api.Server) {
 	}()
 }
 
+// graceFull waits for a stop signal and shuts down the server with a timeout.
 func graceFull(server *api.Server, ctx context.Context) {
 	<-ctx.Done()
 	fmt.Println("Shutting down gracefully, press Ctrl+C again to force")
@@ -110,6 +115,7 @@ func graceFull(server *api.Server, ctx context.Context) {
 	}
 }
 
+// createSystemPool builds a pool from system drives with the requested RAID level.
 func createSystemPool(pools *storage.Pools, level int) (*storage.Pool, error) {
 	drives := storage.GetSystemDrives("l")
 	raid := storage.Raid{Level: level} //Todo Raid 1 needs to be fixed
@@ -128,6 +134,7 @@ func createSystemPool(pools *storage.Pools, level int) (*storage.Pool, error) {
 
 }
 
+// displayDrives prints detected drive and partition details to stdout.
 func displayDrives() {
 	drives, _ := storage.GetDrives()
 	for _, d := range drives {

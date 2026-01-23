@@ -10,11 +10,13 @@ import (
 	"strings"
 )
 
+// commandExists reports whether a command is available in PATH.
 func commandExists(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
 }
 
+// parseSize parses sizes like 10G or 512M into bytes.
 func parseSize(size string) (int64, error) {
 	s := strings.TrimSpace(size)
 	re := regexp.MustCompile(`(?i)^(\d+)([kmgt])?b?$`)
@@ -41,6 +43,7 @@ func parseSize(size string) (int64, error) {
 	}
 }
 
+// sanitizeBasename ensures the basename is safe for filenames.
 func sanitizeBasename(b string) (string, error) {
 	if b == "" {
 		return "", fmt.Errorf("empty basename")
