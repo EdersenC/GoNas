@@ -53,7 +53,7 @@ func (r *Raid) Build(p *Pool) error {
 		drives...,
 	)
 
-	err := helper.BuildMadam(args)
+	err := helper.BuildMdadm(args)
 	if err != nil {
 		return err
 	}
