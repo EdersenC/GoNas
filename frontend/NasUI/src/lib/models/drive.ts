@@ -43,22 +43,56 @@ export type AdoptedDrive = {
 
 export const baseUrl = "localhost:8080/api/v1";
 
-export async function fetchSystemDrives(): Promise<Record<string, Drive>> {
-    return fetchDrives(`http://${baseUrl}/drives`);
-}
 
-export async function fetchDrives(url:string): Promise<Record<string, Drive>> {
-    const res = await fetch(url);
+export async function fetchSystemDrives(timeoutMs: number = 5000): Promise<Record<string, Drive>> {
+    const url = `http://${baseUrl}/drives`
 
-    if (!res.ok) {
-        throw new Error(`Failed to load drives: ${res.status}`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const res = await fetch(url, { signal: controller.signal });
+
+        if (!res.ok) {
+            throw new Error(`Failed to load drives: ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        return data.data as Record<string, Drive>;
+    } catch (err: any) {
+        // Normalize AbortError to a timeout error
+        if (err && err.name === 'AbortError') {
+            throw new Error(`Request timed out after ${timeoutMs} ms`);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timer);
     }
-
-    const data = await res.json();
-
-    return data.data as Record<string, Drive>;
 }
 
-export async function fetchAdoptedDrives(): Promise<Record<string, Drive>> {
-    return fetchDrives(`http://${baseUrl}/drives/adopted`);
+
+export async function fetchAdoptedDrives(timeoutMs: number = 5000): Promise<Record<string, AdoptedDrive>> {
+    const url = `http://${baseUrl}/drives/adopted`
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const res = await fetch(url, { signal: controller.signal });
+
+        if (!res.ok) {
+            throw new Error(`Failed to load adopted drives: ${res.status}`);
+        }
+        const data = await res.json();
+
+        return data.data as Record<string, AdoptedDrive>;
+    } catch (err: any) {
+        if (err && err.name === 'AbortError') {
+            throw new Error(`Request timed out after ${timeoutMs} ms`);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timer);
+    }
 }

@@ -14,8 +14,8 @@
     <DropdownMenu.Content class="w-56">
         <DropdownMenu.Group>
             <DropdownMenu.Separator />
-            <DropdownMenu.Item class="cursor-pointer" on:select={() => console.log("Action 1 selected")}>
-                Action 1
+            <DropdownMenu.Item class="cursor-pointer" onclick={() => console.log("Action 1 selected")}>
+                delete
             </DropdownMenu.Item>
         </DropdownMenu.Group>
     </DropdownMenu.Content>

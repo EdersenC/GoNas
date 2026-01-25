@@ -5,31 +5,30 @@
     import { onMount } from 'svelte';
     import { scale } from 'svelte/transition';
     import List from '$lib/components/ui/drive/list.svelte';
+    import {getPoolManagerContext, PoolManager} from "$lib/state/poolManager.svelte.js";
 
-    let pools = $state<Record<string, Pool>>({});
-    let loading = $state(true);
+    let manager:PoolManager = getPoolManagerContext()
     let error = $state<string | null>(null);
 
-    onMount(async () => {
-        await loadPools();
-    });
 
     async function loadPools() {
-        loading = true;
         error = null;
         try {
-            pools = await fetchPools();
+            await manager.fetchPools();
         } catch (e) {
-            error = e instanceof Error ? e.message : 'Failed to fetch pools';
-        } finally {
-            loading = false;
+            error = `Failed to load pools: ${e}`;
         }
     }
 </script>
 
-<List label="Storage Pools" {loading} {error} onRefresh={loadPools} maxColumns={2}>
+<List label="Storage Pools" loading={manager.loadingPools} error={error} onRefresh={loadPools} maxColumns={2}>
     {#snippet children({ maxItems })}
-        {@const poolEntries = Object.entries(pools)}
+        {#if !manager.pools || Object.keys(manager.pools).length === 0}
+            <div class="p-4 text-center text-sm text-muted-foreground">
+                No storage pools available.
+            </div>
+        {/if}
+        {@const poolEntries = Object.entries(manager.pools)}
         {#each poolEntries.slice(0, maxItems ?? poolEntries.length) as [id, pool], i (id)}
             <div in:scale={{ duration: 300, delay: i * 50, start: 0.8 }}>
                 <UIPool {pool} {id} />

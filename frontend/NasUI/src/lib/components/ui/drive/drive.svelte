@@ -2,7 +2,7 @@
     import {Button} from "$lib/components/ui/button/index.ts";
     import {Status, Size, ActionDropdown} from "$lib/components/ui/drive/index.ts";
     import { Root as CardRoot, Header as CardHeader, Content as CardContent, Footer as CardFooter, Title as CardTitle } from "$lib/components/ui/card/index.ts";
-    import {getDriveManagerContext, DriveManager} from "$lib/state/pool.svelte.js";
+    import {getDriveManagerContext, DriveManager} from "$lib/state/driveManager.svelte.js";
 
     type Props = {
         adopted: boolean;
@@ -84,11 +84,7 @@
                     <span class="flex-1 min-w-0 text-center font-bold truncate">
           {drive.name}
         </span>
-
-                    <!-- prevent dropdown from forcing width -->
-                    <div class="shrink-0" on:click|stopPropagation>
                         <ActionDropdown />
-                    </div>
                 </CardTitle>
             </CardHeader>
 

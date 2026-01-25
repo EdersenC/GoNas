@@ -21,14 +21,27 @@ export type Pool = {
     AdoptedDrives?: Record<string, PoolDrive>;
 }
 
-export async function fetchPools(): Promise<Record<string, Pool>> {
-    const res = await fetch("http://localhost:8080/api/v1/pools");
+export async function fetchPools(timeoutMs: number = 5000): Promise<Record<string, Pool>> {
+    const url = "http://localhost:8080/api/v1/pools";
 
-    if (!res.ok) {
-        throw new Error(`Failed to load pools: ${res.status}`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const res = await fetch(url, { signal: controller.signal });
+
+        if (!res.ok) {
+            throw new Error(`Failed to load pools: ${res.status}`);
+        }
+
+        const data = await res.json();
+        return data.data as Record<string, Pool>;
+    } catch (err: any) {
+        if (err && err.name === 'AbortError') {
+            throw new Error(`Request timed out after ${timeoutMs} ms`);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timer);
     }
-
-    const data = await res.json();
-    return data.data as Record<string, Pool>;
 }
-

@@ -1,12 +1,14 @@
 <script lang="ts">
-    import {getDriveManagerContext, DriveManager} from "$lib/state/pool.svelte.js";
+    import {getDriveManagerContext, DriveManager} from "$lib/state/driveManager.svelte.js";
+    import {getPoolManagerContext, type PoolManager} from "$lib/state/poolManager.svelte.js";
 
     let name = $state('');
     let raidLevel = $state(10);
     let format = $state('ext4');
     let build = $state(false);
 
-    let driveManager:DriveManager = getDriveManagerContext()
+    let driveManager: DriveManager = getDriveManagerContext()
+    let poolManager: PoolManager = getPoolManagerContext()
 
 
     async function createPool() {
@@ -14,27 +16,18 @@
             console.warn('No drives selected for pool creation');
             return;
         }
-        console.log('Selected drives for pool creation', driveManager.getSelectedDrives());
+        console.log('Selected drives for pool creation', driveManager.selectedDrives);
         const payload = {
             name,
             raidLevel,
-            drives: driveManager.getSelectedDrives(),
+            drives: driveManager.selectedDrives,
             format,
             build,
         };
-
         console.log('Creating pool with payload', payload);
-
-        // Example POST - adjust URL to your API
         try {
-            const res = await fetch('http://localhost:8080/api/v1/pool', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            const data = await res.json();
-            console.log('Pool creation response', data);
-            // Clear form and selection on success
+            await poolManager.postPool(payload);
+            driveManager.removeSelectedDrivesFromAdopted();
             name = '';
         } catch (e) {
             console.error('Failed to create pool', e);
@@ -60,10 +53,10 @@
 
         <label class="flex items-center gap-2"><input type="checkbox" bind:checked={build} /> Build</label>
 
-        <div class="text-xs text-muted-foreground">Selected drives: {driveManager.getSelectedDrives().length}</div>
+        <div class="text-xs text-muted-foreground">Selected drives: {driveManager.selectedDrives.length}</div>
         {#if true}
             <ul class="text-xs list-disc ml-4 text-muted-foreground">
-                {#each driveManager.getSelectedDrives() as d}
+                {#each driveManager.selectedDrives as d}
                     <li>{d}</li>
                 {/each}
             </ul>

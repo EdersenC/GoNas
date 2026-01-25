@@ -1,12 +1,27 @@
-import {baseUrl, type Drive, fetchDrives} from "$lib/models/drive.js";
+import {type AdoptedDrive, type Drive, fetchAdoptedDrives, fetchSystemDrives} from "$lib/models/drive.js";
 import {getContext, setContext} from "svelte";
 
 export class DriveManager {
 
-    adoptedDrives: Record<string, Drive> = $state({});
+    adoptedDrives: Record<string, AdoptedDrive> = $state({});
     loadingAdoptedDrives:boolean = $state(true);
-    addAdoptedDrive= (driveId:string, drive:Drive) =>{
+    addAdoptedDrive= (driveId:string, drive:AdoptedDrive) =>{
         this.adoptedDrives = {...this.adoptedDrives, [driveId]: drive};
+    }
+    addAdoptedDrives= (drives:Record<string, AdoptedDrive>) =>{
+        this.adoptedDrives = {...this.adoptedDrives, ...drives};
+    }
+
+    removeAdoptedDrive= (driveId:string) =>{
+        const {[driveId]: _, ...rest} = this.adoptedDrives;
+        this.adoptedDrives = rest;
+    }
+
+    removeSelectedDrivesFromAdopted = () => {
+        this.selectedDrives.forEach(driveId => {
+            this.removeAdoptedDrive(driveId);
+        });
+        this.clearSelectedDrives();
     }
 
     systemDrives: Record<string, Drive> = $state({});
@@ -37,17 +52,29 @@ export class DriveManager {
 
     fetchSystemDrives = async () =>{
         this.loadingSystemDrives = true;
-        this.systemDrives = await fetchDrives(`http://${baseUrl}/drives`);
-        this.loadingSystemDrives = false;
+        try {
+            this.systemDrives = await fetchSystemDrives();
+            this.loadingSystemDrives = false;
+        } catch (e) {
+            console.error("Error fetching system drives:", e);
+            this.loadingSystemDrives = false;
+            throw e
+        }
     }
     fetchAdoptedDrives = async () =>{
         this.loadingAdoptedDrives = true;
-        this.adoptedDrives = await fetchDrives(`http://${baseUrl}/drives/adopted`);
-        this.loadingAdoptedDrives = false;
+        try {
+            this.adoptedDrives = await fetchAdoptedDrives();
+            this.loadingAdoptedDrives = false;
+        } catch (e) {
+            console.error("Error fetching adopted drives:", e);
+            this.loadingAdoptedDrives = false;
+            throw e
+        }
     }
 
 }
-export const DriveManagerKey:Symbol = Symbol("DriveManagerType");
+export const DriveManagerKey:Symbol = Symbol("DriveManager");
 
 export function setDriveManagerContext(){
     return setContext(DriveManagerKey, new DriveManager());

@@ -1,12 +1,11 @@
 <script lang="ts">
     import type { Drive } from "$lib/models/drive";
     import {UIDrive} from "$lib/components/ui/drive/index.js";
-    export let data: {
-        drives: Record<string, Drive>;
-    };
-
-    console.log(data.drives)
+    import {getDriveManagerContext} from "$lib/state/driveManager.svelte.js";
+    let manager = getDriveManagerContext()
+    await manager.fetchSystemDrives()
 </script>
+
 
 <div class="drives-page">
     <header class="page-header">
@@ -15,12 +14,12 @@
     </header>
 
     <div class="drives-grid">
-        {#each Object.entries(data.drives) as [id, drive],i}
+        {#each Object.entries(manager.systemDrives) as [id, drive],i}
             <UIDrive drive ={drive} id={i} />
         {/each}
     </div>
 
-    {#if Object.keys(data.drives).length === 0}
+    {#if Object.keys(manager.systemDrives).length === 0}
         <div class="empty-state">
             <p>No drives detected</p>
         </div>

@@ -7,9 +7,14 @@
     import PoolCreator from "$lib/components/ui/sidebar/sidebar-pool-creator.svelte";
     import { onMount } from 'svelte';
     import {Footer} from "$lib/components/ui/card/index.js";
+    import {getDriveManagerContext} from "$lib/state/driveManager.svelte.js";
+    import {getPoolManagerContext} from "$lib/state/poolManager.svelte.js";
+    import type {AdoptedDrive} from "$lib/models/drive.js";
 
     let isSideBarOpened = $state(false);
     let poolCreatorMode = $derived(isSideBarOpened);
+    let poolManager = getPoolManagerContext()
+    let driveManager = getDriveManagerContext()
     let ratio = $state(2);
 
     function openSidebar() {
@@ -26,7 +31,49 @@
 
 
 
+onMount(async () => {
+    await Promise.allSettled([
+        poolManager.fetchPools(),
+        driveManager.fetchAdoptedDrives(),
+    ]);
 
+    loadFakeDrives(40)
+
+});
+
+    function loadFakeDrives(count: number){
+        let fakeDrive: Record<string, AdoptedDrive> = {};
+        for (let i = 1; i <= count; i++) {
+
+            const size = 500 * 1024 * 1024 * 1024 * (i * Math.random());
+            const id = `fake-${i}`;
+            fakeDrive[id] = {
+                uuid: `fake-uuid-${i}`,
+                drive :{
+                    name: `FakeDrive${i}`,
+                    uuid: `fake-uuid-${i}`,
+                    drive_key: { kind: 'by-path', value: `/dev/sd${i}` },
+                    by_ids: [`/dev/disk/by-id/fake-${i}`],
+                    wwid: `wwid-${i}`,
+                    path: `/dev/sd${i}`,
+                    size_sectors: 976773168,
+                    logical_block_size: 512,
+                    physical_block_size: 4096,
+                    size_bytes: size,
+                    is_rotational: true,
+                    model: `FAKE_MODEL_${i}`,
+                    vendor: `FAKE_VENDOR`,
+                    serial: `SNFAKE${1000 + i}`,
+                    type: (i % 2 === 0 ? 'SSD' : 'HDD'),
+                    mountpoint: '',
+                    partitions: [],
+                    fstype: '',
+                    fsavail: size * Math.random(),
+                }
+            };
+        }
+        driveManager.addAdoptedDrives(fakeDrive)
+    }
 
 </script>
 <div
