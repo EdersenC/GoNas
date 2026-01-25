@@ -1,6 +1,19 @@
-export class PoolSelection {
-    selectedDrives: string[] = $state([]);
+import {baseUrl, type Drive, fetchDrives} from "$lib/models/drive.js";
+import {getContext, setContext} from "svelte";
 
+export class DriveManager {
+
+    adoptedDrives: Record<string, Drive> = $state({});
+    loadingAdoptedDrives:boolean = $state(true);
+    addAdoptedDrive= (driveId:string, drive:Drive) =>{
+        this.adoptedDrives = {...this.adoptedDrives, [driveId]: drive};
+    }
+
+    systemDrives: Record<string, Drive> = $state({});
+    loadingSystemDrives:boolean = $state(true);
+
+
+    selectedDrives: string[] = $state([]);
     getSelectedDrives = (): string[] => {
         return this.selectedDrives;
     }
@@ -11,13 +24,6 @@ export class PoolSelection {
 
     clearSelectedDrives = () => {
         this.selectedDrives = [];
-        console.log("Cleared selected drives", $state.snapshot(this.selectedDrives));
-    }
-
-    addSelectedDrive = (driveId: string) => {
-        if (!this.selectedDrives.includes(driveId)) {
-            this.selectedDrives = [...this.selectedDrives, driveId];
-        }
     }
 
     toggleSelectedDrive = (driveId: string) => {
@@ -27,8 +33,26 @@ export class PoolSelection {
         } else {
             this.selectedDrives = [...this.selectedDrives, driveId];
         }
-        console.log("Selected drives after toggle:", $state.snapshot(this.selectedDrives));
     }
+
+    fetchSystemDrives = async () =>{
+        this.loadingSystemDrives = true;
+        this.systemDrives = await fetchDrives(`http://${baseUrl}/drives`);
+        this.loadingSystemDrives = false;
+    }
+    fetchAdoptedDrives = async () =>{
+        this.loadingAdoptedDrives = true;
+        this.adoptedDrives = await fetchDrives(`http://${baseUrl}/drives/adopted`);
+        this.loadingAdoptedDrives = false;
+    }
+
+}
+export const DriveManagerKey:Symbol = Symbol("DriveManagerType");
+
+export function setDriveManagerContext(){
+    return setContext(DriveManagerKey, new DriveManager());
 }
 
-export const poolSelection = new PoolSelection();
+export function getDriveManagerContext(){
+    return getContext<ReturnType<typeof  setDriveManagerContext>>(DriveManagerKey);
+}

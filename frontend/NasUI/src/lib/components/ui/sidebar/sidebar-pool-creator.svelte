@@ -1,29 +1,24 @@
 <script lang="ts">
-    import {PoolSelection} from "$lib/state/pool.svelte.js";
+    import {getDriveManagerContext, DriveManager} from "$lib/state/pool.svelte.js";
 
     let name = $state('');
     let raidLevel = $state(10);
     let format = $state('ext4');
     let build = $state(false);
 
-    type Props = {
-        poolSelection: PoolSelection;
-    };
-    let {
-        poolSelection
-    }:Props = $props();
+    let driveManager:DriveManager = getDriveManagerContext()
 
 
     async function createPool() {
-        if (poolSelection.selectedDrives.length === 0) {
+        if (driveManager.selectedDrives.length === 0) {
             console.warn('No drives selected for pool creation');
             return;
         }
-        console.log('Selected drives for pool creation', poolSelection.getSelectedDrives());
+        console.log('Selected drives for pool creation', driveManager.getSelectedDrives());
         const payload = {
             name,
             raidLevel,
-            drives: poolSelection.selectedDrives,
+            drives: driveManager.getSelectedDrives(),
             format,
             build,
         };
@@ -65,10 +60,10 @@
 
         <label class="flex items-center gap-2"><input type="checkbox" bind:checked={build} /> Build</label>
 
-        <div class="text-xs text-muted-foreground">Selected drives: {poolSelection.selectedDrives.length}</div>
+        <div class="text-xs text-muted-foreground">Selected drives: {driveManager.getSelectedDrives().length}</div>
         {#if true}
             <ul class="text-xs list-disc ml-4 text-muted-foreground">
-                {#each poolSelection.selectedDrives as d}
+                {#each driveManager.getSelectedDrives() as d}
                     <li>{d}</li>
                 {/each}
             </ul>
@@ -78,7 +73,7 @@
             <button class="px-3 py-2 rounded bg-success text-success-foreground hover:bg-success/90"
                     onclick={createPool}>Create</button>
             <button class="px-3 py-2 rounded bg-surface-muted text-surface-foreground hover:bg-surface-muted/80"
-                    onclick={poolSelection.clearSelectedDrives}>Clear</button>
+                    onclick={driveManager.clearSelectedDrives}>Clear</button>
         </div>
     </div>
 </div>

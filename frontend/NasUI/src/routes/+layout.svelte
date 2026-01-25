@@ -1,6 +1,9 @@
 <script lang="ts">
+    import {setDriveManagerContext} from "$lib/state/pool.svelte.js";
+
     let { children } = $props();
     import '../app.css'
+    setDriveManagerContext()
 </script>
 
 <style>

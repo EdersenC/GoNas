@@ -2,22 +2,21 @@
     import {Button} from "$lib/components/ui/button/index.ts";
     import {Status, Size, ActionDropdown} from "$lib/components/ui/drive/index.ts";
     import { Root as CardRoot, Header as CardHeader, Content as CardContent, Footer as CardFooter, Title as CardTitle } from "$lib/components/ui/card/index.ts";
-    import {PoolSelection} from "$lib/state/pool.svelte.js";
+    import {getDriveManagerContext, DriveManager} from "$lib/state/pool.svelte.js";
 
     type Props = {
         adopted: boolean;
         drive: Drive;
         id: string | number;
         poolCreatorMode: boolean;
-        poolSelection: PoolSelection; // or PoolSelection | null
     };
+    let driveManager: DriveManager = getDriveManagerContext()
 
     let{
         adopted,
         drive,
         id,
         poolCreatorMode,
-        poolSelection
     }:Props = $props();
 
 
@@ -31,7 +30,7 @@
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
     function isSelected() :boolean{
-        return poolSelection.isSelected(drive?.uuid);
+        return driveManager.isSelected(drive?.uuid);
     }
 
    export async function Post(driveId: string) {
@@ -66,7 +65,7 @@
                 style="--card: var(--color-panel); --card-foreground: var(--color-panel-foreground); --card-border: var(--color-panel-border);"
                 tabindex="0"
                 role="button"
-                onclick={()=> {if (poolCreatorMode) { poolSelection.toggleSelectedDrive(drive?.uuid)}}}
+                onclick={()=> {if (poolCreatorMode) { driveManager.toggleSelectedDrive(drive?.uuid)}}}
                 onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault();}  }}
         >
             <CardHeader class="min-w-0">

@@ -3,6 +3,7 @@ import type { PageLoad } from "./$types";
 // @ts-ignore
 import type { Pool } from "$lib/models/pool.js";
 
+// @ts-ignore
 export const load: PageLoad = async ({fetch}) => {
     const res = await fetch("http://localhost:8080/api/v1/pools");
 
@@ -15,6 +16,6 @@ export const load: PageLoad = async ({fetch}) => {
     const pools: Map<string, Pool> = data.data;
 
     return {
-       ools: pools
+       pools: pools
     };
 };

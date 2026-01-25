@@ -1,100 +1,77 @@
 <script lang="ts">
     import {UIDrive} from "$lib/components/ui/drive/index.js";
-    import {type AdoptedDrive, type Drive, fetchAdoptedDrives} from "$lib/models/drive.ts";
-    import {fetchSystemDrives} from "$lib/models/drive.ts";
-    import { onMount } from 'svelte';
+    import {onMount} from 'svelte';
     import { scale } from 'svelte/transition';
     import List from './list.svelte';
-    import type {PoolSelection} from "$lib/models/pool.js";
+    import {DriveManagerKey, getDriveManagerContext, DriveManager} from "$lib/state/pool.svelte.js";
 
     // Cache drives data to prevent refetching on every mount
 
     let {
         ratio,
         poolCreatorMode,
-        poolSelection,
     } = $props();
 
-
-    let cachedDrives: Record<string, Drive> | null = null;
-    let cacheLoading = false;
-
-    let drives = $state<Record<string, Drive>>({});
+    let manager: DriveManager = getDriveManagerContext(DriveManagerKey);
     let adopted= true
-    let loading = $state(true);
     let error = $state<string | null>(null);
+    let loading = $derived<boolean>(adopted ? manager.loadingAdoptedDrives : manager.loadingSystemDrives);
 
     onMount(async () => {
-        // Only fetch if we don't have cached data and aren't already loading
-        if (!cachedDrives && !cacheLoading) {
-            await loadDrives();
-        } else if (cachedDrives) {
-            // Use cached data
-            drives = cachedDrives;
-            loading = false;
-        }
+        await loadDrives()
+
     });
 
 
-
-
     async function loadDrives() {
-        cacheLoading = true;
-        loading = true;
-        error = null;
         try {
-            if (window.location.pathname.endsWith("/drives")) {
-                drives = await fetchSystemDrives();
-                adopted = false;
-            }else {
-                let adoptedDrives:AdoptedDrive = await fetchAdoptedDrives();
-                for (const [key, drive] of Object.entries(adoptedDrives)) {
-                    drives[key] = drive.drive;
-                }
-            }
-            // Add fake drives for testing
-            for (let i = 0; i < 20; i++) {
-                drives[`fake-${i}`] = {
-                    name: `Fake Drive ${i}`,
+
+            error = null;
+            await manager.fetchAdoptedDrives()
+            const count = 8;
+            for (let i = 1; i <= count; i++) {
+                const id = `fake-${i}`;
+                let fakeDrive:Drive = {
+                    name: `sd${i}`,
                     uuid: `fake-uuid-${i}`,
-                    drive_key: { kind: 'hash', value: `fake-value-${i}` },
-                    by_ids: null,
-                    wwid: '',
-                    path: `/dev/fake${i}`,
-                    size_sectors: 209715200,
+                    drive_key: { kind: 'by-path', value: `/dev/sd${i}` },
+                    by_ids: [`/dev/disk/by-id/fake-${i}`],
+                    wwid: `wwid-${i}`,
+                    path: `/dev/sd${i}`,
+                    size_sectors: 976773168,
                     logical_block_size: 512,
-                    physical_block_size: 512,
-                    size_bytes: 107374182400 + i * 1000000000,
-                    is_rotational: i % 2 === 0,
-                    model: `Fake Model ${i}`,
-                    vendor: `Fake Vendor ${i}`,
-                    serial: `Fake Serial ${i}`,
-                    type: 'disk',
-                    mountpoint: i < 5 ? `/mnt/fake${i}` : '',
-                    partitions: null,
-                    fstype: i < 5 ? 'ext4' : '',
-                    fsavail: i < 5 ? 50000000 : 0
+                    physical_block_size: 4096,
+                    size_bytes: 500 * 1024 * 1024 * 1024*(i+2),
+                    is_rotational: true,
+                    model: `FAKE_MODEL_${i}`,
+                    vendor: `FAKE_VENDOR`,
+                    serial: `SNFAKE${1000 + i}`,
+                   type: (i % 2 === 0 ? 'SSD' : 'HDD'),
+                    mountpoint: '',
+                    partitions: [],
+                    fstype: '',
+                    fsavail: (500 * 1024 * 1024 * 1024)*i,
                 };
+                manager.addAdoptedDrive(id, fakeDrive);
             }
-            cachedDrives = drives;
+
         } catch (e) {
-            error = e instanceof Error ? e.message : 'Failed to fetch drives';
-        } finally {
-            loading = false;
-            cacheLoading = false;
+            console.error('Failed to load drives', e);
+            error = 'Failed to load drives';
         }
     }
+
 </script>
 
 <List label="Drives" {loading} {error} onRefresh={loadDrives} ratio={ratio} >
-    {#each Object.entries(drives) as [id, drive], i (id)}
+    {#each Object.entries(manager.adoptedDrives) as [id, drive], i (id)}
         <div in:scale={{ duration: 300, delay: i * 50, start: 0.8 }}>
             <UIDrive
                     adopted={adopted}
-                    drive={drive} ]
+                    drive={drive}
                     id={i}
                     poolCreatorMode={poolCreatorMode}
-                    poolSelection={poolSelection}/>
+            />
         </div>
     {/each}
 </List>

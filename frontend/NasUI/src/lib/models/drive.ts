@@ -41,7 +41,7 @@ export type AdoptedDrive = {
 }
 
 
-let baseUrl = "localhost:8080/api/v1";
+export const baseUrl = "localhost:8080/api/v1";
 
 export async function fetchSystemDrives(): Promise<Record<string, Drive>> {
     return fetchDrives(`http://${baseUrl}/drives`);
@@ -55,6 +55,7 @@ export async function fetchDrives(url:string): Promise<Record<string, Drive>> {
     }
 
     const data = await res.json();
+
     return data.data as Record<string, Drive>;
 }
 

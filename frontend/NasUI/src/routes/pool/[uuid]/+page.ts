@@ -4,6 +4,7 @@ import type { PageLoad } from "./$types";
 // @ts-ignore
 import type { Pool } from "$lib/models/pool.js";
 
+// @ts-ignore
 export const load: PageLoad = async ({ params }) => {
     const res = await fetch(`http://localhost:8080/api/v1/pool/${params.uuid}`);
 
