@@ -12,6 +12,7 @@
         maxColumns?: number;
         maxRows?: number | null;
         onRefresh?: () => void | Promise<void>;
+        compact?: boolean;
         children?: import('svelte').Snippet<[{ maxItems: number | null }]>;
     }
 
@@ -23,6 +24,7 @@
         maxRows = null,
         ratio = 2,
         onRefresh,
+        compact = false,
         children
     }: Props = $props();
 
@@ -38,7 +40,9 @@
 </script>
 
 <div class="grid grid-cols-1 gap-y-6 sm:gap-y-10">
-    <div class="flex items-center justify-center px-2 sm:px-40 py-0">
+    <div
+            class={`flex items-center py-0 ${compact ? "justify-start px-2 sm:px-6 lg:px-10" : "justify-center px-2 sm:px-40"}`}
+    >
         <div class="w-full">
             <Header
                     class="p-2 bg-transparent text-brand flex items-center justify-between gap-2"
@@ -54,13 +58,13 @@
                 {/if}
             </Header>
 
-            <AspectRatio ratio={ratio} class="bg-canvas overflow-hidden rounded-lg">
+            <AspectRatio ratio={ratio} class="bg-canvas rounded-lg">
                 <!-- Ratio box -->
-                <div class="h-full flex flex-col min-h-0 bg-canvas">
+                <div class="h-full flex flex-col min-h-0 bg-canvas overflow-hidden rounded-lg">
                     <!-- Scroll surface (ALWAYS present) -->
                     <div
-                            class="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-canvas"
-                            style="padding-bottom: calc(6rem + env(safe-area-inset-bottom));"
+                            class="drive-scroll flex-1 min-h-0 overflow-x-hidden overflow-y-auto overscroll-y-none bg-canvas pr-1 sm:pr-2"
+                            style="padding-bottom: env(safe-area-inset-bottom);"
                     >
                         {#if loading}
                             <div
@@ -82,7 +86,7 @@
                             <div class="min-h-0" in:fade={{ duration: 300 }}>
                                 <!-- Your grid/list wrapper -->
                                 <div
-                                    class="content-grid min-h-0 pb-2"
+                                    class="content-grid min-h-0"
                                     style={`--list-max-columns: ${maxColumns};`}
                                 >
                                     {#if children}
@@ -103,11 +107,15 @@
 </div>
 
 <style>
-.content-grid {
+    .drive-scroll {
+        scrollbar-gutter: stable both-edges;
+    }
+
+    .content-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 1.5rem;
-        padding: 1.5rem;
+        padding: 1.5rem 1.5rem 1rem;
         max-width: 100%;
         background-color: var(--color-canvas);
     }

@@ -4,6 +4,7 @@
     import {Separator} from "$lib/components/ui/separator/index.js";
     import { Provider as SidebarProvider, Root as SidebarRoot, Content as SidebarContent } from "$lib/components/ui/sidebar/index.js";
     import {Button} from "$lib/components/ui/button/index.js";
+    import PanelLeftIcon from "@lucide/svelte/icons/panel-left";
     import PoolCreator from "$lib/components/ui/sidebar/sidebar-pool-creator.svelte";
     import { onMount } from 'svelte';
     import {Footer} from "$lib/components/ui/card/index.js";
@@ -78,7 +79,7 @@ onMount(async () => {
 </script>
 <div
         class="min-h-screen overflow-x-hidden bg-canvas text-canvas-foreground"
-        style="--sb: clamp(14rem, 30vw, 22rem);"
+        style="--sb: clamp(20rem, 40vw, 32rem);"
 >
     <div
             class="grid min-h-screen transition-[grid-template-columns] duration-300 ease-in-out"
@@ -88,9 +89,12 @@ onMount(async () => {
     >
         <!-- Sidebar -->
         <aside class="h-screen overflow-hidden bg-canvas">
-            <SidebarProvider bind:open={isSideBarOpened} style="--sidebar-width: var(--sb);">
-                <SidebarRoot>
-                    <SidebarContent>
+            <SidebarProvider
+                    bind:open={isSideBarOpened}
+                    style="--sidebar-width: var(--sb); --sidebar: var(--color-canvas); --sidebar-foreground: var(--color-canvas-foreground); --sidebar-border: var(--color-brand); --color-sidebar-border: var(--color-brand);"
+            >
+                <SidebarRoot variant="floating" class="pool-sidebar">
+                    <SidebarContent class="p-2">
                         <PoolCreator />
                     </SidebarContent>
                 </SidebarRoot>
@@ -99,7 +103,7 @@ onMount(async () => {
 
         <!-- Main content -->
         <main class="min-w-0 bg-canvas">
-            <div class="h-screen overflow-y-auto overscroll-contain overflow-x-hidden">
+            <div class={`h-screen overscroll-contain overflow-x-hidden ${isSideBarOpened ? "overflow-y-hidden" : "overflow-y-auto"}`}>
                 <div class="pt-10 pb-48 min-w-0">
                     <DrivesList ratio={ratio} poolCreatorMode={poolCreatorMode}  />
 
@@ -118,7 +122,25 @@ onMount(async () => {
         </main>
     </div>
 
-    <Button onclick={openSidebar} class="fixed bottom-4 right-4 z-50">
-        {isSideBarOpened ? 'Close Sidebar' : 'Open Sidebar'}
-    </Button>
+    <div
+            class="fixed left-3 top-4 z-50 transition-transform duration-300 ease-in-out"
+            style={`transform: translateX(${isSideBarOpened ? "calc(var(--sb) - 0.75rem)" : "0"});`}
+    >
+        <Button
+                variant="ghost"
+                size="sm"
+                class="group gap-2 rounded-full border border-surface-border/70 bg-panel/80 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-panel-foreground shadow-sm backdrop-blur transition hover:bg-panel/95"
+                onclick={openSidebar}
+                aria-expanded={isSideBarOpened}
+        >
+            <PanelLeftIcon class={`size-4 transition-transform ${isSideBarOpened ? "rotate-180" : ""}`} />
+            <span>{isSideBarOpened ? 'Hide pool' : 'Create pool'}</span>
+        </Button>
+    </div>
 </div>
+
+<style>
+    :global(.pool-sidebar [data-sidebar="sidebar-inner"]) {
+        border-color: var(--color-brand);
+    }
+</style>

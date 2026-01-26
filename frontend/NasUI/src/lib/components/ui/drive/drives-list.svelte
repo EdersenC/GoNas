@@ -30,7 +30,7 @@
 
 </script>
 
-<List label="Drives" {loading} {error} onRefresh={loadDrives} ratio={ratio} >
+<List label="Drives" {loading} {error} onRefresh={loadDrives} ratio={ratio} compact={poolCreatorMode} >
     {@const drivesEntries = Object.entries(manager.adoptedDrives)}
     {#if drivesEntries.length === 0}
         <div class="p-4 text-center text-sm text-muted-foreground">
