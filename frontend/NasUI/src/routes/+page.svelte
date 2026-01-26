@@ -140,7 +140,7 @@ onMount(async () => {
 </div>
 
 <style>
-    :global(.pool-sidebar [data-sidebar="sidebar-inner"]) {
+    :global(.pool-sidebar [data-slot="sidebar-inner"]) {
         border-color: var(--color-brand);
     }
 </style>
