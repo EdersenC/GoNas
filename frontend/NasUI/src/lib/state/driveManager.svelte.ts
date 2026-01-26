@@ -73,6 +73,19 @@ export class DriveManager {
         }
     }
 
+    adopt = async (driveId: string) => {
+        if (!driveId) return;
+        let url = `http://localhost:8080/api/v1/drives/adopt/${driveId}`;
+        if (window.location.pathname.startsWith('/pools')) {
+            url = `http://localhost:8080/api/v1/pools/adopt/${driveId}`;
+        }
+        const res = await fetch(url, {
+            method: 'POST',
+        });
+        console.log(await res.json())
+        console.log(`Adopting drive with ID: ${driveId}`);
+    }
+
 }
 export const DriveManagerKey:Symbol = Symbol("DriveManager");
 

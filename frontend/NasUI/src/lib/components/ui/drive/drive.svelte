@@ -33,23 +33,10 @@
         return driveManager.isSelected(drive?.uuid);
     }
 
-   export async function Post(driveId: string) {
-        if (!driveId) return;
-        // choose endpoint based on location
-        let url = `http://localhost:8080/api/v1/drives/adopt/${driveId}`;
-        if (window.location.pathname.startsWith('/pools')) {
-            url = `http://localhost:8080/api/v1/pools/adopt/${driveId}`;
-        }
-        const res = await fetch(url, {
-            method: 'POST',
-        });
-        console.log(await res.json())
-        console.log(`Adopting drive with ID: ${driveId}`);
-    }
 
-    // Reactive computed values using the project's $derived helper (single-argument form)
+
     let used = $derived(drive ? drive.size_bytes - drive.fsavail : 0);
-    let percent = $derived(drive && drive.size_bytes > 0 ? (used / drive.size_bytes) * 100 : 0);
+    let percent = $derived(drive && drive.size_bytes > 0 ? parseFloat(((Number(used) / Number(drive.size_bytes)) * 100).toFixed(3)) : 0);
 
 </script>
 
@@ -131,7 +118,7 @@
                     <Button
                             variant="green"
                             class="w-full min-w-0 truncate"
-                            onclick={() => Post((drive?.drive_key?.kind ?? "") + ":" + (drive?.drive_key?.value ?? ""))}
+                            onclick={() => driveManager.adopt((drive?.drive_key?.kind ?? "") + ":" + (drive?.drive_key?.value ?? ""))}
                             title={"Adopt " + (drive?.name ?? "")}
                     >
                         Adopt {drive.name}

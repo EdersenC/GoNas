@@ -19,7 +19,7 @@
 
     function openSidebar() {
         isSideBarOpened = !isSideBarOpened;
-        ratio = isSideBarOpened ? 1.5 : 2;
+        ratio = isSideBarOpened ? 1.2 : 2;
         if (isSideBarOpened) {
             document.documentElement.style.overflow = "hidden";
             document.body.style.overflow = "hidden";
@@ -32,12 +32,12 @@
 
 
 onMount(async () => {
-    await Promise.allSettled([
+    await Promise.all([
         poolManager.fetchPools(),
         driveManager.fetchAdoptedDrives(),
     ]);
 
-    loadFakeDrives(40)
+    loadFakeDrives(100)
 
 });
 
