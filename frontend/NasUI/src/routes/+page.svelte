@@ -103,7 +103,7 @@ onMount(async () => {
 
         <!-- Main content -->
         <main class="min-w-0 bg-canvas">
-            <div class={`h-screen overscroll-contain overflow-x-hidden ${isSideBarOpened ? "overflow-y-hidden" : "overflow-y-auto"}`}>
+            <div class="h-screen overscroll-contain overflow-x-hidden overflow-y-auto">
                 <div class="pt-10 pb-48 min-w-0">
                     <DrivesList ratio={ratio} poolCreatorMode={poolCreatorMode}  />
 
