@@ -119,21 +119,23 @@ func createPool(c *gin.Context) {
 		return
 	}
 
-	if req.Build {
-		err = pool.Build()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-	}
-
 	err = NAS.AddPool(pool, c)
 	if err != nil {
 		NAS.poolError(err, c)
 		return
 	}
+
 	_ = NAS.RemoveAdoptedDrives(req.Drives, c) // Clean up adopted drives after pool creation
-	SuccessResponse(c, pool.Uuid)
+
+	if req.Build {
+		err = pool.Build()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Pool Created but failed to build" + err.Error()})
+			return
+		}
+	}
+
+	SuccessResponse(c, pool)
 }
 
 // deletePool removes the pool from the database and memory.
@@ -156,7 +158,7 @@ func deletePool(c *gin.Context) {
 		return
 	}
 
-	SuccessResponse(c, gin.H{"deleted": pool.Uuid})
+	SuccessResponse(c, gin.H{"Deleted": pool.Uuid})
 }
 
 // getPool returns a pool by UUID.
@@ -223,6 +225,7 @@ func buildPool(c *gin.Context) {
 	}
 	SuccessResponse(c, gin.H{"built": pool.Uuid})
 }
+
 // SuccessResponse writes a standard success response envelope.
 func SuccessResponse(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, gin.H{

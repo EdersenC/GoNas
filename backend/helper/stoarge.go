@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -169,15 +170,41 @@ var DefaultMountPoint = "/mnt/pools"
 
 // BuildMdadm runs mdadm with the provided args to create a RAID array.
 func BuildMdadm(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("no arguments provided to mdadm")
+	}
+
 	if err := installMdadm(); err != nil {
-		return err
+		return fmt.Errorf("installMdadm: %w", err)
 	}
 
 	cmd := exec.Command("mdadm", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to create RAID array: %w", err)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	outStr := strings.TrimSpace(stdout.String())
+	errStr := strings.TrimSpace(stderr.String())
+
+	if err != nil {
+		// Try to extract exit code when available
+		exitCode := -1
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			// ExitError exposes ExitCode() in recent Go versions
+			exitCode = ee.ExitCode()
+		}
+		cmdStr := "mdadm " + strings.Join(args, " ")
+		return fmt.Errorf("mdadm failed (cmd=%q exit=%d): %v\nstdout: %s\nstderr: %s", cmdStr, exitCode, err, outStr, errStr)
+	}
+
+	// Print any non-empty output for debugging
+	if outStr != "" {
+		fmt.Printf("mdadm stdout: %s\n", outStr)
+	}
+	if errStr != "" {
+		fmt.Printf("mdadm stderr: %s\n", errStr)
 	}
 	return nil
 }

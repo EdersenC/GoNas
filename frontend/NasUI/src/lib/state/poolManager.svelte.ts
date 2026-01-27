@@ -21,8 +21,8 @@ export class PoolManager{
         }
     }
 
-    postPool = async (poolData: FormData, timeoutMs: number = 5000) => {
-        const url = `http://localhost:8080/api/v1/pools`;
+    postPool = async (poolData:string, timeoutMs: number = 5000) => {
+        const url = `http://localhost:8080/api/v1/pool`;
 
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);

@@ -1,10 +1,17 @@
 <script lang="ts">
-    import type { Drive } from "$lib/models/drive";
     import {UIDrive} from "$lib/components/ui/drive/index.js";
     import {getDriveManagerContext} from "$lib/state/driveManager.svelte.js";
+    import {onMount} from "svelte";
     let manager = getDriveManagerContext()
-    await manager.fetchSystemDrives()
+
+    onMount(async () => {
+        await manager.fetchSystemDrives()
+    })
+
+
+
 </script>
+
 
 
 <div class="drives-page">

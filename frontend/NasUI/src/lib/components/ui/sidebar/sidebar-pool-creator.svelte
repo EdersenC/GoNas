@@ -2,6 +2,7 @@
     import {getDriveManagerContext, DriveManager} from "$lib/state/driveManager.svelte.js";
     import {getPoolManagerContext, type PoolManager} from "$lib/state/poolManager.svelte.js";
     import {Button} from "$lib/components/ui/button/index.js";
+    import {json} from "@sveltejs/kit";
 
     let name = $state('');
     let raidLevel = $state(10);
@@ -42,13 +43,13 @@
         const payload = {
             name,
             raidLevel,
-            drives: driveManager.selectedDrives,
+            drives: driveManager.getSelectedDrives(),
             format,
             build,
         };
         console.log('Creating pool with payload', payload);
         try {
-            await poolManager.postPool(payload);
+            await poolManager.postPool(JSON.stringify(payload));
             driveManager.removeSelectedDrivesFromAdopted();
             name = '';
         } catch (e) {

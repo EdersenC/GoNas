@@ -30,7 +30,7 @@ export class DriveManager {
 
     selectedDrives: string[] = $state([]);
     getSelectedDrives = (): string[] => {
-        return this.selectedDrives;
+        return $state.snapshot(this.selectedDrives);
     }
 
     isSelected = (driveId: string): boolean => {
