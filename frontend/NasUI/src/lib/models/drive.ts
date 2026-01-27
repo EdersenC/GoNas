@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "$lib/utils/fetch.js";
+
 export type DriveKey = {
     kind: string;
     value: string;
@@ -46,53 +48,27 @@ export const baseUrl = "localhost:8080/api/v1";
 
 export async function fetchSystemDrives(timeoutMs: number = 5000): Promise<Record<string, Drive>> {
     const url = `http://${baseUrl}/drives`
+    const res = await fetchWithTimeout(url, {}, timeoutMs);
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-        const res = await fetch(url, { signal: controller.signal });
-
-        if (!res.ok) {
-            throw new Error(`Failed to load drives: ${res.status}`);
-        }
-
-        const data = await res.json();
-
-        return data.data as Record<string, Drive>;
-    } catch (err: any) {
-        // Normalize AbortError to a timeout error
-        if (err && err.name === 'AbortError') {
-            throw new Error(`Request timed out after ${timeoutMs} ms`);
-        }
-        throw err;
-    } finally {
-        clearTimeout(timer);
+    if (!res.ok) {
+        throw new Error(`Failed to load drives: ${res.status}`);
     }
+
+    const data = await res.json();
+
+    return data.data as Record<string, Drive>;
 }
 
 
 export async function fetchAdoptedDrives(timeoutMs: number = 5000): Promise<Record<string, AdoptedDrive>> {
     const url = `http://${baseUrl}/drives/adopted`
+    const res = await fetchWithTimeout(url, {}, timeoutMs);
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    try {
-        const res = await fetch(url, { signal: controller.signal });
-
-        if (!res.ok) {
-            throw new Error(`Failed to load adopted drives: ${res.status}`);
-        }
-        const data = await res.json();
-
-        return data.data as Record<string, AdoptedDrive>;
-    } catch (err: any) {
-        if (err && err.name === 'AbortError') {
-            throw new Error(`Request timed out after ${timeoutMs} ms`);
-        }
-        throw err;
-    } finally {
-        clearTimeout(timer);
+    if (!res.ok) {
+        throw new Error(`Failed to load adopted drives: ${res.status}`);
     }
+    const data = await res.json();
+
+    return data.data as Record<string, AdoptedDrive>;
 }
+import { fetchWithTimeout } from "$lib/utils/fetch.js";

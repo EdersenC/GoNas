@@ -1,5 +1,6 @@
 import {getContext, setContext} from "svelte";
 import {fetchPools, type Pool} from "$lib/models/pool.js";
+import { fetchWithTimeout } from "$lib/utils/fetch.js";
 
 export class PoolManager{
     pools: Record<string, Pool> = $state({});
@@ -28,16 +29,11 @@ export class PoolManager{
 
     postPool = async (poolData: FormData, timeoutMs: number = 5000) => {
         const url = `http://localhost:8080/api/v1/pools`;
-
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
         try {
-            const res = await fetch(url, {
+            const res = await fetchWithTimeout(url, {
                 method: 'POST',
                 body: poolData,
-                signal: controller.signal
-            });
+            }, timeoutMs);
 
             if (!res.ok) {
                 throw new Error(`Failed to create pool: ${res.status}`);
@@ -47,27 +43,17 @@ export class PoolManager{
             const newPool: Pool = data.data;
             this.addPool(newPool.uuid, newPool); // todo make backend return the pool also
         } catch (err: any) {
-            if (err && err.name === 'AbortError') {
-                throw new Error(`Request timed out after ${timeoutMs} ms`);
-            }
             console.error("Error creating pool:", err);
             throw err;
-        } finally {
-            clearTimeout(timer);
         }
     }
 
     buildPool = async (poolId: string, timeoutMs: number = 10000) => {
         const url = `http://localhost:8080/api/v1/pool/${poolId}/build`;
-
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
         try {
-            const res = await fetch(url, {
+            const res = await fetchWithTimeout(url, {
                 method: 'POST',
-                signal: controller.signal
-            });
+            }, timeoutMs);
 
             if (!res.ok) {
                 throw new Error(`Failed to build pool: ${res.status}`);
@@ -75,27 +61,17 @@ export class PoolManager{
 
             await this.fetchPools();
         } catch (err: any) {
-            if (err && err.name === 'AbortError') {
-                throw new Error(`Request timed out after ${timeoutMs} ms`);
-            }
             console.error("Error building pool:", err);
             throw err;
-        } finally {
-            clearTimeout(timer);
         }
     }
 
     deletePool = async (poolId: string, timeoutMs: number = 10000) => {
         const url = `http://localhost:8080/api/v1/pool/${poolId}`;
-
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
         try {
-            const res = await fetch(url, {
+            const res = await fetchWithTimeout(url, {
                 method: 'DELETE',
-                signal: controller.signal
-            });
+            }, timeoutMs);
 
             if (!res.ok) {
                 throw new Error(`Failed to delete pool: ${res.status}`);
@@ -103,13 +79,8 @@ export class PoolManager{
 
             this.removePool(poolId);
         } catch (err: any) {
-            if (err && err.name === 'AbortError') {
-                throw new Error(`Request timed out after ${timeoutMs} ms`);
-            }
             console.error("Error deleting pool:", err);
             throw err;
-        } finally {
-            clearTimeout(timer);
         }
     }
 
