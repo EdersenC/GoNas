@@ -63,9 +63,9 @@
         <div class="absolute inset-0 opacity-60" style="background: radial-gradient(circle at top, rgba(59, 130, 246, 0.22), transparent 60%);"></div>
         <div class="relative flex items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">Pool Creator</p>
-                <h3 class="text-2xl font-semibold tracking-tight">Build a new storage pool</h3>
-                <p class="text-sm text-muted-foreground">Pick drives from the list and dial in your layout.</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.25em] text-panel-foreground/70">Pool Creator</p>
+                <h3 class="text-2xl font-semibold tracking-tight text-panel-foreground">Build a new storage pool</h3>
+                <p class="text-sm text-panel-foreground/70">Pick drives from the list and dial in your layout.</p>
             </div>
             <div class="shrink-0 rounded-full border border-brand/50 bg-surface-muted/40 px-3 py-1 text-xs font-semibold">
                 {selectedDriveCount} selected
@@ -75,7 +75,7 @@
 
     <div class="grid gap-3">
         <div class="grid gap-2">
-            <label class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Pool name</label>
+            <label class="text-sm font-semibold uppercase tracking-wider text-panel-foreground/70">Pool name</label>
             <input
                 class="w-full rounded-lg border border-surface-border/70 bg-surface-muted/60 px-3 py-2 text-sm text-surface-foreground outline-none transition focus:border-brand/60 focus:ring-2 focus:ring-brand/30"
                 bind:value={name}
@@ -84,17 +84,17 @@
         </div>
 
         <div class="grid gap-2">
-            <div class="flex items-center justify-between">
-                <label class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">RAID level</label>
-                <span class="text-sm text-muted-foreground">Current: RAID {raidLevel}</span>
+                <div class="flex items-center justify-between">
+                <label class="text-sm font-semibold uppercase tracking-wider text-panel-foreground/70">RAID level</label>
+                <span class="text-sm text-panel-foreground/70">Current: RAID {raidLevel}</span>
             </div>
             <div class="grid grid-cols-4 gap-2">
                 {#each raidOptions as level}
                     <button
                         type="button"
-                        class={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${
+                        class={`rounded-lg border px-2 py-2 text-xs font-semibold transition hover:shadow-sm active:shadow ${
                             raidLevel === level
-                                ? "border-brand/70 bg-brand/20 text-brand-foreground"
+                                ? "border-brand/70 bg-brand/20 text-brand-foreground shadow-sm"
                                 : "border-surface-border/60 bg-surface-muted/40 text-surface-foreground hover:bg-surface-muted/70"
                         }`}
                         onclick={() => (raidLevel = level)}
@@ -106,7 +106,7 @@
         </div>
 
         <div class="grid gap-2">
-            <label class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Format</label>
+            <label class="text-sm font-semibold uppercase tracking-wider text-panel-foreground/70">Format</label>
             <select
                 class="w-full rounded-lg border border-surface-border/70 bg-surface-muted/60 px-3 py-2 text-sm text-surface-foreground outline-none transition focus:border-brand/60 focus:ring-2 focus:ring-brand/30"
                 bind:value={format}
@@ -120,7 +120,7 @@
         <label class="flex items-center justify-between gap-3 rounded-xl border border-brand/40 bg-surface-muted/40 px-3 py-3">
             <div class="space-y-1">
                 <div class="text-base font-semibold">Build immediately</div>
-                <div class="text-sm text-muted-foreground">Start the build process right after creation.</div>
+                <div class="text-sm text-panel-foreground/70">Start the build process right after creation.</div>
             </div>
             <span class="relative inline-flex h-6 w-11 shrink-0 items-center">
                 <input type="checkbox" class="peer sr-only" bind:checked={build} />
@@ -132,14 +132,14 @@
 
     <div class="grid gap-2 rounded-2xl border border-brand/40 bg-surface/60 p-4">
         <div class="flex items-center justify-between">
-            <span class="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Selected drives</span>
-            <span class="text-sm text-muted-foreground">
+            <span class="text-sm font-semibold uppercase tracking-wider text-panel-foreground/70">Selected drives</span>
+            <span class="text-sm text-panel-foreground/70">
                 {selectedDriveCount} drives / {formatBytes(selectedDriveTotalBytes)}
             </span>
         </div>
 
         {#if selectedDriveItems.length === 0}
-            <div class="rounded-lg border border-dashed border-brand/40 bg-surface-muted/30 px-3 py-4 text-sm text-muted-foreground">
+            <div class="rounded-lg border border-dashed border-brand/40 bg-surface-muted/30 px-3 py-4 text-sm text-panel-foreground/70">
                 Select drives from the list to see them here.
             </div>
         {:else}
@@ -147,15 +147,15 @@
                 {#each selectedDriveItems as adoptedDrive}
                     <div class="flex items-center justify-between gap-3 rounded-lg border border-brand/30 bg-panel/60 px-3 py-3">
                         <div class="min-w-0">
-                            <div class="truncate text-base font-semibold">{adoptedDrive.drive.name}</div>
-                            <div class="truncate text-sm text-muted-foreground">
+                            <div class="truncate text-base font-semibold text-panel-foreground">{adoptedDrive.drive.name}</div>
+                            <div class="truncate text-sm text-panel-foreground/70">
                                 {adoptedDrive.drive.model || "Unknown model"} - {adoptedDrive.drive.is_rotational ? "HDD" : "SSD"}
                             </div>
                         </div>
-                        <div class="shrink-0 text-sm text-muted-foreground">{formatBytes(adoptedDrive.drive.size_bytes || 0)}</div>
+                        <div class="shrink-0 text-sm text-panel-foreground/70">{formatBytes(adoptedDrive.drive.size_bytes || 0)}</div>
                         <button
                             type="button"
-                            class="shrink-0 rounded-md border border-brand/40 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground transition hover:text-surface-foreground"
+                            class="shrink-0 rounded-md border border-brand/40 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-panel-foreground/70 transition hover:text-surface-foreground"
                             onclick={() => driveManager.toggleSelectedDrive(adoptedDrive.drive.uuid)}
                         >
                             Remove
