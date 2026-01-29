@@ -1,6 +1,6 @@
 import {getContext, setContext} from "svelte";
 import {fetchPools, type Pool} from "$lib/models/pool.js";
-import { fetchWithTimeout } from "$lib/utils/fetch.js";
+import {fetchWithTimeout} from "$lib/utils/fetch.js";
 
 export class PoolManager{
     pools: Record<string, Pool> = $state({});
@@ -28,7 +28,7 @@ export class PoolManager{
     }
 
     postPool = async (poolData: FormData, timeoutMs: number = 5000) => {
-        const url = `http://localhost:8080/api/v1/pools`;
+        const url = `http://localhost:8080/api/v1/pool`;
         try {
             const res = await fetchWithTimeout(url, {
                 method: 'POST',

@@ -1,4 +1,4 @@
-import { fetchWithTimeout } from "$lib/utils/fetch.js";
+import {fetchWithTimeout} from "$lib/utils/fetch.js";
 
 export type DriveKey = {
     kind: string;
@@ -71,4 +71,3 @@ export async function fetchAdoptedDrives(timeoutMs: number = 5000): Promise<Reco
 
     return data.data as Record<string, AdoptedDrive>;
 }
-import { fetchWithTimeout } from "$lib/utils/fetch.js";

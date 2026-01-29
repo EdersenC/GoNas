@@ -1,9 +1,9 @@
 <script lang="ts">
-    import type { Drive } from "$lib/models/drive";
     import {UIDrive} from "$lib/components/ui/drive/index.js";
     import {getDriveManagerContext} from "$lib/state/driveManager.svelte.js";
+
     let manager = getDriveManagerContext()
-    await manager.fetchSystemDrives()
+    // await manager.fetchSystemDrives()
 </script>
 
 
