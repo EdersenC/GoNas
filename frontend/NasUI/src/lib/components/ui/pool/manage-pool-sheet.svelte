@@ -1,6 +1,8 @@
 <script lang="ts">
     import {Button} from "$lib/components/ui/button/index.ts";
     import type {Pool} from "$lib/models/pool.ts";
+    import * as Sheet from "$lib/components/ui/sheet/index.ts";
+    import * as Tabs from "$lib/components/ui/tabs/index.ts";
     import PoolSheetHeader from "./pool-sheet-header.svelte";
     import PoolStatsTab from "./pool-stats-tab.svelte";
     import PoolSharesTab from "./pool-shares-tab.svelte";
