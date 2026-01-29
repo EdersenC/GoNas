@@ -326,8 +326,8 @@ func (n *Nas) ValidatePoolPatch(patch *DB.PoolPatch) error {
 	return nil
 }
 
-// setOffline sets the status of the pool to offline.
 // Todo: implement actual offline logic
+// setOffline sets the status of the pool to offline.
 func (n *Nas) setOffline(pool *storage.Pool) error {
 	pool.SetStatus(storage.Offline)
 
