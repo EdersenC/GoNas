@@ -48,6 +48,7 @@ func NewAPIServer(addr string, db *DB.DB) *Server {
 	SERVER = server
 	return server
 }
+
 // Start loads data and begins serving HTTP requests.
 func (s *Server) Start() error {
 	s.Nas.SystemDrives = storage.GetSystemDriveMap()
@@ -171,7 +172,7 @@ func (n *Nas) deletePool(p *storage.Pool) error {
 	if err != nil {
 		return err
 	}
-
+	log.Println("Pool", p.Uuid, "deleted from memory")
 	return nil
 }
 

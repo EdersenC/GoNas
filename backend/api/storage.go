@@ -146,13 +146,14 @@ func deletePool(c *gin.Context) {
 		NAS.poolError(err, c)
 		return
 	}
-	err = SERVER.Db.DeletePool(c, pool.Uuid)
+
+	err = NAS.deletePool(pool)
 	if err != nil {
 		NAS.poolError(err, c)
 		return
 	}
 
-	err = NAS.deletePool(pool)
+	err = SERVER.Db.DeletePool(c, pool.Uuid)
 	if err != nil {
 		NAS.poolError(err, c)
 		return
