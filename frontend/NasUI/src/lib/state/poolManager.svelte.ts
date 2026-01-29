@@ -1,5 +1,6 @@
 import {getContext, setContext} from "svelte";
 import {fetchPools, type Pool} from "$lib/models/pool.js";
+import {fetchWithTimeout} from "$lib/utils/fetch.js";
 
 export class PoolManager{
     pools: Record<string, Pool> = $state({});
