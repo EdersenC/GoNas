@@ -1,9 +1,10 @@
+const controller = new AbortController();
+
 export async function fetchWithTimeout(
     input: RequestInfo | URL,
     init: RequestInit = {},
     timeoutMs: number = 5000
 ): Promise<Response> {
-    const controller = new AbortController();
     const abort = controller.abort.bind(controller);
     init.signal?.addEventListener("abort", abort, { once: true });
     const timer = setTimeout(abort, timeoutMs);
