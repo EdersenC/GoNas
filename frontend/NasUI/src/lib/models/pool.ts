@@ -8,13 +8,18 @@ export type PoolDrive = {
     createdAt: string;
 }
 
+export type Type = {
+    name: string;
+    Level : string;
+}
+
 export type Pool = {
     name: string;
     uuid: string;
     status: string;
     mountPoint: string;
     mdDevice: string;
-    type: string;
+    type: Type;
     totalCapacity: number;
     availableCapacity: number;
     format: string;

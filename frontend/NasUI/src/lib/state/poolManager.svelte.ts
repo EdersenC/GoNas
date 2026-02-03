@@ -5,6 +5,7 @@ import {fetchWithTimeout} from "$lib/utils/fetch.js";
 export class PoolManager{
     pools: Record<string, Pool> = $state({});
     loadingPools:boolean = $state(true);
+    creatingPool: boolean = $state(false);
 
     addPool= (poolId:string, pool:Pool) =>{
         this.pools = {...this.pools, [poolId]: pool};
@@ -27,9 +28,10 @@ export class PoolManager{
         }
     }
 
-    postPool = async (poolData: FormData, timeoutMs: number = 5000) => {
+    createPool = async (poolData: FormData, timeoutMs: number = 5000) => {
         const url = `http://localhost:8080/api/v1/pool`;
         try {
+            this.creatingPool = true;
             const res = await fetchWithTimeout(url, {
                 method: 'POST',
                 body: poolData,
@@ -42,8 +44,10 @@ export class PoolManager{
             const data = await res.json();
             const newPool: Pool = data.data;
             this.addPool(newPool.uuid, newPool); // todo make backend return the pool also
+            this.creatingPool = false;
         } catch (err: any) {
             console.error("Error creating pool:", err);
+            this.creatingPool = false;
             throw err;
         }
     }

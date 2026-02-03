@@ -38,7 +38,7 @@
 			<div class="mt-2 flex items-center justify-between">
 				<span class="capitalize">{pool.status || "unknown"}</span>
 				<span class="text-xs text-panel-foreground/70">
-					{pool.type || "RAID"} • {pool.format || "Unknown"}
+					{pool.type.Level || "RAID"} • {pool.format || "Unknown"}
 				</span>
 			</div>
 		</div>

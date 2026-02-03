@@ -3,6 +3,7 @@
     import {getPoolManagerContext, type PoolManager} from "$lib/state/poolManager.svelte.js";
     import {Button} from "$lib/components/ui/button/index.js";
     import {json} from "@sveltejs/kit";
+    import {Spinner} from "$lib/components/ui/spinner/index.js";
 
     let name = $state('');
     let raidLevel = $state(10);
@@ -12,9 +13,10 @@
     let driveManager: DriveManager = getDriveManagerContext()
     let poolManager: PoolManager = getPoolManagerContext()
 
+
+
     const raidOptions = [0, 1, 5, 10];
     const formatOptions = ["ext4", "xfs", "btrfs"];
-
     let selectedDriveItems = $derived(
         Object.values(driveManager.adoptedDrives).filter((adoptedDrive) =>
             driveManager.selectedDrives.includes(adoptedDrive.drive.uuid)
@@ -49,7 +51,7 @@
         };
         console.log('Creating pool with payload', payload);
         try {
-            await poolManager.postPool(JSON.stringify(payload));
+            await poolManager.createPool(JSON.stringify(payload));
             driveManager.removeSelectedDrivesFromAdopted();
             name = '';
         } catch (e) {
@@ -173,7 +175,11 @@
             disabled={driveManager.selectedDrives.length === 0}
             onclick={createPool}
         >
-            Create pool
+            {#if poolManager.creatingPool}
+                <Spinner />
+            {:else}
+                Create Pool
+            {/if}
         </Button>
         <Button class="flex-1" variant="secondary" onclick={driveManager.clearSelectedDrives}>
             Clear selection
