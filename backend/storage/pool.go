@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"goNAS/helper"
 	"os"
@@ -36,6 +37,11 @@ func (r *Raid) Build(p *Pool) error {
 	if p.Format == "" {
 		return ErrPoolFormatRequired
 	}
+	sanitizedName, err := helper.SanitizeRaidName(p.Name)
+	if err != nil {
+		return err
+	}
+	p.Name = sanitizedName
 
 	drives := make([]string, 0, len(p.AdoptedDrives))
 	for _, d := range p.AdoptedDrives {
@@ -48,12 +54,12 @@ func (r *Raid) Build(p *Pool) error {
 			p.MdDevice,
 			fmt.Sprintf("--level=%d", r.Level),
 			fmt.Sprintf("--raid-devices=%d", len(p.AdoptedDrives)),
-			fmt.Sprintf("--name=%s", p.Name), //Todo check if name is valid or sanitize
+			fmt.Sprintf("--name=%s", p.Name),
 		},
 		drives...,
 	)
 
-	err := helper.BuildMdadm(args)
+	err = helper.BuildMdadm(args)
 	if err != nil {
 		return err
 	}
@@ -143,6 +149,11 @@ const SHORTUUIDLEN = 16
 
 // NewPool constructs a pool with adopted drives and a generated UUID.
 func NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo) (*Pool, error) {
+	sanitizedName, err := helper.SanitizeRaidName(name)
+	if err != nil {
+		return nil, err
+	}
+
 	poolMap := make(map[string]*AdoptedDrive)
 	poolId := uuid.New().String()
 	for i := range drives {
@@ -155,7 +166,7 @@ func NewPool(name string, poolType PoolType, format string, drives ...*DriveInfo
 		return nil, err
 	}
 	pool := Pool{
-		Name:          name,
+		Name:          sanitizedName,
 		Uuid:          poolId,
 		Status:        Offline,
 		AdoptedDrives: poolMap,
@@ -288,10 +299,10 @@ func (p *Pool) RemoveDrives(uuids ...string) error {
 // UnmountDrive unmounts and removes the pool mount point directory.
 func (p *Pool) UnmountDrive() error {
 	if err := exec.Command("sudo", "umount", p.MountPoint).Run(); err != nil {
-		return fmt.Errorf("%w: %v", ErrPoolDeleteUnmount, err)
+		return errors.Join(ErrPoolDeleteUnmount, err)
 	}
 	if err := exec.Command("sudo", "rmdir", p.MountPoint).Run(); err != nil {
-		return fmt.Errorf("%w: %v", ErrPoolDeleteRmdir, err)
+		return errors.Join(ErrPoolDeleteRmdir, err)
 	}
 	return nil
 }
@@ -308,12 +319,12 @@ func (p *Pool) Delete() error {
 	args := []string{"mdadm", "--remove", p.MdDevice}
 	mdamRemove := exec.Command("sudo", args...)
 	if err := mdamRemove.Run(); err != nil {
-		return fmt.Errorf("%w: %v", ErrPoolDeleteRemove, err)
+		return errors.Join(ErrPoolDeleteRemove, err)
 	}
 	args = []string{"mdadm", "--stop", p.MdDevice}
 	mdamStop := exec.Command("sudo", args...)
 	if err := mdamStop.Run(); err != nil {
-		return fmt.Errorf("%w: %v", ErrPoolDeleteStop, err)
+		return errors.Join(ErrPoolDeleteStop, err)
 	}
 
 	var drivePaths []string
@@ -324,7 +335,7 @@ func (p *Pool) Delete() error {
 	zeroOut := exec.Command("sudo", args...)
 	zeroOut.Stderr = os.Stderr
 	if err := zeroOut.Run(); err != nil {
-		return fmt.Errorf("%w: %v", ErrPoolDeleteZeroSB, err)
+		return errors.Join(ErrPoolDeleteZeroSB, err)
 	}
 	return nil
 }
@@ -349,7 +360,7 @@ func GetPoolCapacity(device string) (total uint64, avail uint64, err error) {
 	cmd := exec.Command("df", "-B1", "--output=source,size,used,avail,pcent", device)
 	out, err := cmd.Output()
 	if err != nil {
-		return 0, 0, fmt.Errorf("%w: %v", ErrPoolCapacityRead, err)
+		return 0, 0, errors.Join(ErrPoolCapacityRead, err)
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
@@ -368,12 +379,12 @@ func GetPoolCapacity(device string) (total uint64, avail uint64, err error) {
 
 	total, err = strconv.ParseUint(sizeStr, 10, 64)
 	if err != nil {
-		return 0, 0, fmt.Errorf("%w: total=%q: %v", ErrPoolCapacityParse, sizeStr, err)
+		return 0, 0, errors.Join(ErrPoolCapacityParse, fmt.Errorf("total=%q: %w", sizeStr, err))
 	}
 
 	avail, err = strconv.ParseUint(availStr, 10, 64)
 	if err != nil {
-		return 0, 0, fmt.Errorf("%w: available=%q: %v", ErrPoolCapacityParse, availStr, err)
+		return 0, 0, errors.Join(ErrPoolCapacityParse, fmt.Errorf("available=%q: %w", availStr, err))
 	}
 
 	return total, avail, nil

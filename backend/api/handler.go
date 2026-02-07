@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"goNAS/DB"
+	"goNAS/helper"
 	"goNAS/storage"
 	"log"
 	"net/http"
@@ -309,6 +310,18 @@ func (n *Nas) AdoptDriveByKey(key string, c *gin.Context) (*storage.AdoptedDrive
 
 // ValidatePoolPatch validates patch fields before persistence.
 func (n *Nas) ValidatePoolPatch(patch *DB.PoolPatch) error {
+	if patch == nil {
+		return storage.ErrInvalidRequestBody
+	}
+
+	if patch.Name != "" {
+		sanitizedName, err := helper.SanitizeRaidName(patch.Name)
+		if err != nil {
+			return err
+		}
+		patch.Name = sanitizedName
+	}
+
 	if patch.Status != "" {
 		err := storage.ValidateStatus(patch.Status)
 		if err != nil {

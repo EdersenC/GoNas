@@ -1,6 +1,6 @@
 import type { Drive } from './drive.ts';
 import { fetchWithTimeout } from "$lib/utils/fetch.js";
-import { AppErrorCode, responseError } from "$lib/errors.js";
+import { PoolErrorCode, responseError } from "$lib/errors.js";
 
 export type PoolDrive = {
     drive: Drive;
@@ -33,7 +33,7 @@ export async function fetchPools(timeoutMs: number = 5000): Promise<Record<strin
     const res = await fetchWithTimeout(url, {}, timeoutMs);
 
     if (!res.ok) {
-        throw await responseError(res, AppErrorCode.FETCH_POOLS_FAILED, "Failed to load pools");
+        throw await responseError(res, PoolErrorCode.FETCH_POOLS_FAILED, "Failed to load pools");
     }
 
     const data = await res.json();

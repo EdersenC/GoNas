@@ -1,5 +1,5 @@
 import {fetchWithTimeout} from "$lib/utils/fetch.js";
-import { AppErrorCode, responseError } from "$lib/errors.js";
+import { DriveErrorCode, responseError } from "$lib/errors.js";
 
 export type DriveKey = {
     kind: string;
@@ -52,7 +52,7 @@ export async function fetchSystemDrives(timeoutMs: number = 5000): Promise<Recor
     const res = await fetchWithTimeout(url, {}, timeoutMs);
 
     if (!res.ok) {
-        throw await responseError(res, AppErrorCode.FETCH_DRIVES_FAILED, "Failed to load drives");
+        throw await responseError(res, DriveErrorCode.FETCH_DRIVES_FAILED, "Failed to load drives");
     }
 
     const data = await res.json();
@@ -66,7 +66,7 @@ export async function fetchAdoptedDrives(timeoutMs: number = 5000): Promise<Reco
     const res = await fetchWithTimeout(url, {}, timeoutMs);
 
     if (!res.ok) {
-        throw await responseError(res, AppErrorCode.FETCH_ADOPTED_DRIVES_FAILED, "Failed to load adopted drives");
+        throw await responseError(res, DriveErrorCode.FETCH_ADOPTED_DRIVES_FAILED, "Failed to load adopted drives");
     }
     const data = await res.json();
 

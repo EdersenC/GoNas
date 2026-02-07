@@ -2,13 +2,14 @@
     import {getDriveManagerContext, DriveManager} from "$lib/state/driveManager.svelte.js";
     import {getPoolManagerContext, type PoolManager} from "$lib/state/poolManager.svelte.js";
     import {Button} from "$lib/components/ui/button/index.js";
-    import {json} from "@sveltejs/kit";
     import {Spinner} from "$lib/components/ui/spinner/index.js";
+    import {toUserMessage} from "$lib/errors.js";
 
     let name = $state('');
     let raidLevel = $state(10);
     let format = $state('ext4');
     let build = $state(false);
+    let createError = $state<string | null>(null);
 
     let driveManager: DriveManager = getDriveManagerContext()
     let poolManager: PoolManager = getPoolManagerContext()
@@ -37,8 +38,9 @@
     }
 
     async function createPool() {
+        createError = null;
         if (driveManager.selectedDrives.length === 0) {
-            console.warn('No drives selected for pool creation');
+            createError = 'Select at least one drive to create a pool.';
             return;
         }
         console.log('Selected drives for pool creation', driveManager.selectedDrives);
@@ -56,6 +58,7 @@
             name = '';
         } catch (e) {
             console.error('Failed to create pool', e);
+            createError = toUserMessage(e);
         }
     }
 </script>
@@ -185,4 +188,10 @@
             Clear selection
         </Button>
     </div>
+
+    {#if createError}
+        <div class="rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            {createError}
+        </div>
+    {/if}
 </div>

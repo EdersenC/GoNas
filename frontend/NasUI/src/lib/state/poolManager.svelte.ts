@@ -1,7 +1,7 @@
 import {getContext, setContext} from "svelte";
 import {fetchPools, type Pool} from "$lib/models/pool.js";
 import {fetchWithTimeout} from "$lib/utils/fetch.js";
-import { AppErrorCode, responseError } from "$lib/errors.js";
+import { PoolErrorCode, responseError } from "$lib/errors.js";
 
 export class PoolManager{
     pools: Record<string, Pool> = $state({});
@@ -39,7 +39,7 @@ export class PoolManager{
             }, timeoutMs);
 
             if (!res.ok) {
-                throw await responseError(res, AppErrorCode.CREATE_POOL_FAILED, "Failed to create pool");
+                throw await responseError(res, PoolErrorCode.CREATE_POOL_FAILED, "Failed to create pool");
             }
 
             const data = await res.json();
@@ -61,7 +61,7 @@ export class PoolManager{
             }, timeoutMs);
 
             if (!res.ok) {
-                throw await responseError(res, AppErrorCode.BUILD_POOL_FAILED, "Failed to build pool");
+                throw await responseError(res, PoolErrorCode.BUILD_POOL_FAILED, "Failed to build pool");
             }
 
             await this.fetchPools();
@@ -79,7 +79,7 @@ export class PoolManager{
             }, timeoutMs);
 
             if (!res.ok) {
-                throw await responseError(res, AppErrorCode.DELETE_POOL_FAILED, "Failed to delete pool");
+                throw await responseError(res, PoolErrorCode.DELETE_POOL_FAILED, "Failed to delete pool");
             }
 
             this.removePool(poolId);

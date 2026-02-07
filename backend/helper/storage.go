@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -37,6 +38,7 @@ var (
 	ErrMountPointCreate      = errors.New("failed to create mount point")
 	ErrMountRaidDevice       = errors.New("failed to mount raid device")
 	ErrFormatRaidDevice      = errors.New("failed to format raid device")
+	ErrInvalidRaidName       = errors.New("invalid raid name")
 )
 
 // Contains reports whether val is contained within any element of list.
@@ -147,6 +149,20 @@ func installMdadm() error {
 func commandExists(cmd string) bool {
 	_, err := exec.LookPath(cmd)
 	return err == nil
+}
+
+var raidNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+
+// SanitizeRaidName validates and normalizes a RAID array name for mdadm.
+func SanitizeRaidName(name string) (string, error) {
+	sanitized := strings.TrimSpace(name)
+	if sanitized == "" {
+		return "", fmt.Errorf("%w: name is empty", ErrInvalidRaidName)
+	}
+	if !raidNamePattern.MatchString(sanitized) {
+		return "", fmt.Errorf("%w: %q must match %s", ErrInvalidRaidName, sanitized, raidNamePattern.String())
+	}
+	return sanitized, nil
 }
 
 // CheckRaidLevel validates RAID level constraints against drive count.

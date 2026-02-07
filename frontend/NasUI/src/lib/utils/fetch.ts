@@ -1,4 +1,4 @@
-import { AppErrorCode, createAppError } from "$lib/errors.js";
+import { RequestErrorCode, createRequestError } from "$lib/errors.js";
 
 export async function fetchWithTimeout(
     input: RequestInfo | URL,
@@ -17,7 +17,7 @@ export async function fetchWithTimeout(
         });
     } catch (err) {
         if (err && (err as Error).name === "AbortError") {
-            throw createAppError(AppErrorCode.REQUEST_TIMEOUT, `Request timed out after ${timeoutMs} ms`);
+            throw createRequestError(RequestErrorCode.REQUEST_TIMEOUT, `Request timed out after ${timeoutMs} ms`);
         }
         throw err;
     } finally {
