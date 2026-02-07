@@ -1,10 +1,11 @@
-const controller = new AbortController();
+import { AppErrorCode, createAppError } from "$lib/errors.js";
 
 export async function fetchWithTimeout(
     input: RequestInfo | URL,
     init: RequestInit = {},
     timeoutMs: number = 5000
 ): Promise<Response> {
+    const controller = new AbortController();
     const abort = controller.abort.bind(controller);
     init.signal?.addEventListener("abort", abort, { once: true });
     const timer = setTimeout(abort, timeoutMs);
@@ -16,7 +17,7 @@ export async function fetchWithTimeout(
         });
     } catch (err) {
         if (err && (err as Error).name === "AbortError") {
-            throw new Error(`Request timed out after ${timeoutMs} ms`);
+            throw createAppError(AppErrorCode.REQUEST_TIMEOUT, `Request timed out after ${timeoutMs} ms`);
         }
         throw err;
     } finally {

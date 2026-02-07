@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,6 +9,20 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+)
+
+var (
+	ErrInvalidSize         = errors.New("invalid size")
+	ErrEmptyBasename       = errors.New("empty basename")
+	ErrInvalidBasename     = errors.New("invalid basename")
+	ErrInvalidImageCount   = errors.New("invalid image count")
+	ErrMissingSize         = errors.New("missing size")
+	ErrRootRequired        = errors.New("root privileges required")
+	ErrLosetupMissing      = errors.New("losetup not found")
+	ErrImageCreateFailed   = errors.New("failed to create loop image")
+	ErrImageTruncateFailed = errors.New("failed to truncate loop image")
+	ErrImageCloseFailed    = errors.New("failed to close loop image")
+	ErrLosetupAttachFailed = errors.New("failed to attach loop device")
 )
 
 // commandExists reports whether a command is available in PATH.
@@ -22,7 +37,7 @@ func parseSize(size string) (int64, error) {
 	re := regexp.MustCompile(`(?i)^(\d+)([kmgt])?b?$`)
 	m := re.FindStringSubmatch(s)
 	if len(m) < 2 {
-		return 0, fmt.Errorf("invalid size: %s", size)
+		return 0, fmt.Errorf("%w: %s", ErrInvalidSize, size)
 	}
 	v, err := strconv.ParseInt(m[1], 10, 64)
 	if err != nil {
@@ -46,11 +61,11 @@ func parseSize(size string) (int64, error) {
 // sanitizeBasename ensures the basename is safe for filenames.
 func sanitizeBasename(b string) (string, error) {
 	if b == "" {
-		return "", fmt.Errorf("empty basename")
+		return "", ErrEmptyBasename
 	}
 	ok, _ := regexp.MatchString(`^[A-Za-z0-9_-]+$`, b)
 	if !ok {
-		return "", fmt.Errorf("basename contains invalid characters")
+		return "", ErrInvalidBasename
 	}
 	return b, nil
 }
@@ -59,16 +74,16 @@ func sanitizeBasename(b string) (string, error) {
 // <basename>_N.img, truncates them to `size`, and attaches them as loop devices.
 func CreateLoopImages(basename, workdir string, count int, size string) ([]string, error) {
 	if count <= 0 {
-		return nil, fmt.Errorf("count must be > 0")
+		return nil, fmt.Errorf("%w: %d", ErrInvalidImageCount, count)
 	}
 	if strings.TrimSpace(size) == "" {
-		return nil, fmt.Errorf("size must be provided")
+		return nil, ErrMissingSize
 	}
 	if os.Geteuid() != 0 {
-		return nil, fmt.Errorf("operation requires root privileges")
+		return nil, ErrRootRequired
 	}
 	if !commandExists("losetup") {
-		return nil, fmt.Errorf("losetup not found")
+		return nil, ErrLosetupMissing
 	}
 	bn, err := sanitizeBasename(basename)
 	if err != nil {
@@ -83,7 +98,7 @@ func CreateLoopImages(basename, workdir string, count int, size string) ([]strin
 		return nil, err
 	}
 	if sizeBytes <= 0 {
-		return nil, fmt.Errorf("size must be > 0")
+		return nil, fmt.Errorf("%w: %s", ErrInvalidSize, size)
 	}
 
 	// detach loop devices that reference previous images with this basename
@@ -114,20 +129,20 @@ func CreateLoopImages(basename, workdir string, count int, size string) ([]strin
 		img := filepath.Join(wd, fmt.Sprintf("%s_%d.img", bn, i))
 		f, err := os.OpenFile(img, os.O_CREATE|os.O_RDWR, 0644)
 		if err != nil {
-			return nil, fmt.Errorf("create %s: %w", img, err)
+			return nil, fmt.Errorf("%w: %s: %v", ErrImageCreateFailed, img, err)
 		}
 		if err := f.Truncate(sizeBytes); err != nil {
 			_ = f.Close()
-			return nil, fmt.Errorf("truncate %s: %w", img, err)
+			return nil, fmt.Errorf("%w: %s: %v", ErrImageTruncateFailed, img, err)
 		}
 		if err := f.Close(); err != nil {
-			return nil, fmt.Errorf("close %s: %w", img, err)
+			return nil, fmt.Errorf("%w: %s: %v", ErrImageCloseFailed, img, err)
 		}
 
 		cmd := exec.Command("losetup", "-f", "--show", img)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			return nil, fmt.Errorf("losetup %s failed: %w; output: %s", img, err, strings.TrimSpace(string(out)))
+			return nil, fmt.Errorf("%w: %s: %v; output=%s", ErrLosetupAttachFailed, img, err, strings.TrimSpace(string(out)))
 		}
 		dev := strings.TrimSpace(string(out))
 		loops = append(loops, dev)

@@ -288,10 +288,10 @@ func (p *Pool) RemoveDrives(uuids ...string) error {
 // UnmountDrive unmounts and removes the pool mount point directory.
 func (p *Pool) UnmountDrive() error {
 	if err := exec.Command("sudo", "umount", p.MountPoint).Run(); err != nil {
-		return fmt.Errorf("failed to unmount pool: %w", err)
+		return fmt.Errorf("%w: %v", ErrPoolDeleteUnmount, err)
 	}
 	if err := exec.Command("sudo", "rmdir", p.MountPoint).Run(); err != nil {
-		return fmt.Errorf("failed to remove dir: %w", err)
+		return fmt.Errorf("%w: %v", ErrPoolDeleteRmdir, err)
 	}
 	return nil
 }
@@ -308,12 +308,12 @@ func (p *Pool) Delete() error {
 	args := []string{"mdadm", "--remove", p.MdDevice}
 	mdamRemove := exec.Command("sudo", args...)
 	if err := mdamRemove.Run(); err != nil {
-		return err
+		return fmt.Errorf("%w: %v", ErrPoolDeleteRemove, err)
 	}
 	args = []string{"mdadm", "--stop", p.MdDevice}
 	mdamStop := exec.Command("sudo", args...)
 	if err := mdamStop.Run(); err != nil {
-		return err
+		return fmt.Errorf("%w: %v", ErrPoolDeleteStop, err)
 	}
 
 	var drivePaths []string
@@ -324,7 +324,7 @@ func (p *Pool) Delete() error {
 	zeroOut := exec.Command("sudo", args...)
 	zeroOut.Stderr = os.Stderr
 	if err := zeroOut.Run(); err != nil {
-		return err
+		return fmt.Errorf("%w: %v", ErrPoolDeleteZeroSB, err)
 	}
 	return nil
 }
@@ -349,18 +349,18 @@ func GetPoolCapacity(device string) (total uint64, avail uint64, err error) {
 	cmd := exec.Command("df", "-B1", "--output=source,size,used,avail,pcent", device)
 	out, err := cmd.Output()
 	if err != nil {
-		return 0, 0, fmt.Errorf("df command failed: %w", err)
+		return 0, 0, fmt.Errorf("%w: %v", ErrPoolCapacityRead, err)
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	if len(lines) < 2 {
-		return 0, 0, fmt.Errorf("unexpected df output: %q", string(out))
+		return 0, 0, fmt.Errorf("%w: unexpected output %q", ErrPoolCapacityRead, string(out))
 	}
 
 	fields := strings.Fields(lines[1])
 	// expected: source size used avail pcent
 	if len(fields) < 4 {
-		return 0, 0, fmt.Errorf("unexpected df fields: %v", fields)
+		return 0, 0, fmt.Errorf("%w: unexpected fields %v", ErrPoolCapacityRead, fields)
 	}
 
 	sizeStr := fields[1]
@@ -368,12 +368,12 @@ func GetPoolCapacity(device string) (total uint64, avail uint64, err error) {
 
 	total, err = strconv.ParseUint(sizeStr, 10, 64)
 	if err != nil {
-		return 0, 0, fmt.Errorf("parsing total size: %w", err)
+		return 0, 0, fmt.Errorf("%w: total=%q: %v", ErrPoolCapacityParse, sizeStr, err)
 	}
 
 	avail, err = strconv.ParseUint(availStr, 10, 64)
 	if err != nil {
-		return 0, 0, fmt.Errorf("parsing avail size: %w", err)
+		return 0, 0, fmt.Errorf("%w: available=%q: %v", ErrPoolCapacityParse, availStr, err)
 	}
 
 	return total, avail, nil

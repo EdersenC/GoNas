@@ -73,7 +73,7 @@ func (db *DB) PatchDrive(ctx context.Context, driveUuid string, p DrivePatch) er
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+		return storage.ErrDriveNotFound
 	}
 
 	return nil
