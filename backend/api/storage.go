@@ -1,6 +1,8 @@
 package api
 
 import (
+	"errors"
+	"fmt"
 	"goNAS/DB"
 	"goNAS/helper"
 	"goNAS/storage"
@@ -12,34 +14,60 @@ import (
 // poolError writes a pool-related error response with the appropriate status.
 func (n *Nas) poolError(err error, c *gin.Context) {
 	message := gin.H{"error": err.Error()}
-	switch err {
-	case storage.ErrPoolNotFound:
+	switch {
+	case errors.Is(err, storage.ErrPoolNotFound):
 		c.JSON(http.StatusNotFound, message)
-	case storage.ErrPoolInUse:
+	case errors.Is(err, storage.ErrPoolInUse):
 		c.JSON(http.StatusConflict, message)
-	case storage.ErrDriveNotFoundOrInUse:
+	case errors.Is(err, storage.ErrDriveNotFoundOrInUse):
 		c.JSON(http.StatusConflict, message)
-	case storage.ErrInsufficientDrives:
+	case errors.Is(err, storage.ErrInsufficientDrives):
 		c.JSON(http.StatusBadRequest, message)
-	case storage.ErrPoolAlreadyExists:
+	case errors.Is(err, storage.ErrPoolAlreadyExists):
 		c.JSON(http.StatusConflict, message)
-	case storage.ErrPoolNotOffline:
+	case errors.Is(err, storage.ErrPoolNotOffline):
 		c.JSON(http.StatusConflict, message)
-	case storage.ErrPoolFormatRequired:
+	case errors.Is(err, storage.ErrPoolFormatRequired):
 		c.JSON(http.StatusBadRequest, message)
-	case storage.ErrInvalidPoolType:
+	case errors.Is(err, storage.ErrInvalidPoolType):
 		c.JSON(http.StatusBadRequest, message)
-	case storage.ErrUnsupportedFormat:
+	case errors.Is(err, storage.ErrUnsupportedFormat):
 		c.JSON(http.StatusBadRequest, message)
-	case storage.ErrInvalidStatus:
+	case errors.Is(err, storage.ErrInvalidStatus):
 		c.JSON(http.StatusBadRequest, message)
-	case helper.ErrRaid0RequiresDrives, helper.ErrRaid1RequiresDrives, helper.ErrRaid5RequiresDrives,
-		helper.ErrRaid6RequiresDrives, helper.ErrRaid10RequiresDrives:
+	case errors.Is(err, storage.ErrInvalidRequestBody):
 		c.JSON(http.StatusBadRequest, message)
-	case helper.ErrUnsupportedRaidLevel:
+	case errors.Is(err, helper.ErrRaid0RequiresDrives),
+		errors.Is(err, helper.ErrRaid1RequiresDrives),
+		errors.Is(err, helper.ErrRaid5RequiresDrives),
+		errors.Is(err, helper.ErrRaid6RequiresDrives),
+		errors.Is(err, helper.ErrRaid10RequiresDrives):
 		c.JSON(http.StatusBadRequest, message)
-	case storage.ErrPoolNotInMemory:
+	case errors.Is(err, helper.ErrUnsupportedRaidLevel):
+		c.JSON(http.StatusBadRequest, message)
+	case errors.Is(err, helper.ErrInvalidSizeInput),
+		errors.Is(err, helper.ErrInvalidAmountInput),
+		errors.Is(err, helper.ErrRootPrivilegesNeeded),
+		errors.Is(err, helper.ErrWorkdirResolve),
+		errors.Is(err, helper.ErrPackageManagerMissing),
+		errors.Is(err, helper.ErrMdadmInstall),
+		errors.Is(err, helper.ErrMdadmInstallVerify),
+		errors.Is(err, helper.ErrMdadmArgsEmpty),
+		errors.Is(err, helper.ErrMdadmBuild),
+		errors.Is(err, helper.ErrMountPointCreate),
+		errors.Is(err, helper.ErrMountRaidDevice),
+		errors.Is(err, helper.ErrFormatRaidDevice):
+		c.JSON(http.StatusInternalServerError, message)
+	case errors.Is(err, storage.ErrPoolNotInMemory):
 		c.JSON(http.StatusNotFound, message)
+	case errors.Is(err, storage.ErrPoolDeleteUnmount),
+		errors.Is(err, storage.ErrPoolDeleteRmdir),
+		errors.Is(err, storage.ErrPoolDeleteRemove),
+		errors.Is(err, storage.ErrPoolDeleteStop),
+		errors.Is(err, storage.ErrPoolDeleteZeroSB),
+		errors.Is(err, storage.ErrPoolCapacityRead),
+		errors.Is(err, storage.ErrPoolCapacityParse):
+		c.JSON(http.StatusInternalServerError, message)
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
 	}
@@ -48,16 +76,16 @@ func (n *Nas) poolError(err error, c *gin.Context) {
 // driveError writes a drive-related error response with the appropriate status.
 func (n *Nas) driveError(err error, c *gin.Context) {
 	message := gin.H{"error": err.Error()}
-	switch err {
-	case storage.ErrDriveNotFound:
+	switch {
+	case errors.Is(err, storage.ErrDriveNotFound):
 		c.JSON(http.StatusNotFound, message)
-	case storage.ErrAlreadyAdopted:
+	case errors.Is(err, storage.ErrAlreadyAdopted):
 		c.JSON(http.StatusConflict, message)
-	case storage.ErrDriveNotFoundOrInUse:
+	case errors.Is(err, storage.ErrDriveNotFoundOrInUse):
 		c.JSON(http.StatusConflict, message)
-	case storage.ErrNoDrivesToRemove:
+	case errors.Is(err, storage.ErrNoDrivesToRemove):
 		c.JSON(http.StatusBadRequest, message)
-	case storage.ErrDuplicateDriveKey:
+	case errors.Is(err, storage.ErrDuplicateDriveKey):
 		c.JSON(http.StatusBadRequest, message)
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
@@ -105,7 +133,7 @@ func createPool(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		NAS.poolError(fmt.Errorf("%w: %v", storage.ErrInvalidRequestBody, err), c)
 		return
 	}
 	pool, err := NAS.POOLS.NewPool(req.Name, &storage.Raid{Level: *req.RaidLevel}, req.Format)
@@ -130,7 +158,7 @@ func createPool(c *gin.Context) {
 	if req.Build {
 		err = pool.Build()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Pool Created but failed to build" + err.Error()})
+			NAS.poolError(err, c)
 			return
 		}
 	}
@@ -185,7 +213,7 @@ func updatePool(c *gin.Context) {
 	var req *DB.PoolPatch
 
 	if err = c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		NAS.poolError(fmt.Errorf("%w: %v", storage.ErrInvalidRequestBody, err), c)
 		return
 	}
 	if err = NAS.ValidatePoolPatch(req); err != nil {

@@ -19,12 +19,24 @@ var Megabyte = uint64(1024 * 1024)
 
 // RAID-related errors
 var (
-	ErrRaid0RequiresDrives  = errors.New("raid0 requires at least 2 drives")
-	ErrRaid1RequiresDrives  = errors.New("raid1 requires at least 2 drives")
-	ErrRaid5RequiresDrives  = errors.New("raid5 requires at least 3 drives")
-	ErrRaid6RequiresDrives  = errors.New("raid6 requires at least 4 drives")
-	ErrRaid10RequiresDrives = errors.New("raid10 requires at least 4 drives and an even number of drives")
-	ErrUnsupportedRaidLevel = errors.New("unsupported raid level")
+	ErrRaid0RequiresDrives   = errors.New("raid0 requires at least 2 drives")
+	ErrRaid1RequiresDrives   = errors.New("raid1 requires at least 2 drives")
+	ErrRaid5RequiresDrives   = errors.New("raid5 requires at least 3 drives")
+	ErrRaid6RequiresDrives   = errors.New("raid6 requires at least 4 drives")
+	ErrRaid10RequiresDrives  = errors.New("raid10 requires at least 4 drives and an even number of drives")
+	ErrUnsupportedRaidLevel  = errors.New("unsupported raid level")
+	ErrInvalidSizeInput      = errors.New("invalid size input")
+	ErrInvalidAmountInput    = errors.New("invalid amount input")
+	ErrRootPrivilegesNeeded  = errors.New("root privileges required")
+	ErrWorkdirResolve        = errors.New("failed to determine workdir")
+	ErrPackageManagerMissing = errors.New("supported package manager not found")
+	ErrMdadmInstall          = errors.New("failed to install mdadm")
+	ErrMdadmInstallVerify    = errors.New("mdadm installation verification failed")
+	ErrMdadmArgsEmpty        = errors.New("mdadm arguments are required")
+	ErrMdadmBuild            = errors.New("mdadm command failed")
+	ErrMountPointCreate      = errors.New("failed to create mount point")
+	ErrMountRaidDevice       = errors.New("failed to mount raid device")
+	ErrFormatRaidDevice      = errors.New("failed to format raid device")
 )
 
 // Contains reports whether val is contained within any element of list.
@@ -55,19 +67,19 @@ func StripTrailingDigits(s string) string {
 func CreateLoopDevice(size string, amount int) error {
 	name := "testDrive"
 	if strings.TrimSpace(size) == "" {
-		return fmt.Errorf("invalid size: empty string")
+		return fmt.Errorf("%w: empty string", ErrInvalidSizeInput)
 	}
 	if amount <= 0 {
-		return fmt.Errorf("invalid amount: %d (must be > 0)", amount)
+		return fmt.Errorf("%w: %d", ErrInvalidAmountInput, amount)
 	}
 
 	if os.Geteuid() != 0 {
-		return fmt.Errorf("creating loop devices requires root privileges")
+		return ErrRootPrivilegesNeeded
 	}
 
 	workdir, err := filepath.Abs(".")
 	if err != nil {
-		return fmt.Errorf("determine workdir: %w", err)
+		return fmt.Errorf("%w: %v", ErrWorkdirResolve, err)
 	}
 
 	loops, err := config.CreateLoopImages(name, workdir, amount, size)
@@ -110,7 +122,7 @@ func installMdadm() error {
 		pm = "pacman"
 		installCmd = "pacman -Sy --noconfirm mdadm"
 	default:
-		return fmt.Errorf("no supported package manager found (apt, dnf, yum, pacman)")
+		return ErrPackageManagerMissing
 	}
 
 	fmt.Printf("Installing mdadm using %s...\n", pm)
@@ -119,12 +131,12 @@ func installMdadm() error {
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to install mdadm with %s: %w", pm, err)
+		return fmt.Errorf("%w: manager=%s err=%v", ErrMdadmInstall, pm, err)
 	}
 
 	// Verify installation succeeded
 	if _, err := exec.LookPath("mdadm"); err != nil {
-		return fmt.Errorf("mdadm installation appears to have failed")
+		return ErrMdadmInstallVerify
 	}
 
 	fmt.Println("mdadm successfully installed ✅")
@@ -171,11 +183,11 @@ var DefaultMountPoint = "/mnt/pools"
 // BuildMdadm runs mdadm with the provided args to create a RAID array.
 func BuildMdadm(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("no arguments provided to mdadm")
+		return ErrMdadmArgsEmpty
 	}
 
 	if err := installMdadm(); err != nil {
-		return fmt.Errorf("installMdadm: %w", err)
+		return err
 	}
 
 	cmd := exec.Command("mdadm", args...)
@@ -196,7 +208,7 @@ func BuildMdadm(args []string) error {
 			exitCode = ee.ExitCode()
 		}
 		cmdStr := "mdadm " + strings.Join(args, " ")
-		return fmt.Errorf("mdadm failed (cmd=%q exit=%d): %v\nstdout: %s\nstderr: %s", cmdStr, exitCode, err, outStr, errStr)
+		return fmt.Errorf("%w: cmd=%q exit=%d err=%v stdout=%s stderr=%s", ErrMdadmBuild, cmdStr, exitCode, err, outStr, errStr)
 	}
 
 	// Print any non-empty output for debugging
@@ -214,11 +226,11 @@ func CreateMountPoint(uuid string, mdDevice string) error {
 	// Create and mount directory
 	mountPoint := fmt.Sprintf("%s/%s", DefaultMountPoint, uuid)
 	if err := os.MkdirAll(mountPoint, 0755); err != nil {
-		return fmt.Errorf("failed to create mount directory: %w", err)
+		return fmt.Errorf("%w: %v", ErrMountPointCreate, err)
 	}
 
 	if err := exec.Command("mount", mdDevice, mountPoint).Run(); err != nil {
-		return fmt.Errorf("failed to mount RAID device: %w", err)
+		return fmt.Errorf("%w: %v", ErrMountRaidDevice, err)
 	}
 	return nil
 }
@@ -226,7 +238,7 @@ func CreateMountPoint(uuid string, mdDevice string) error {
 // FormatPool formats the given mdDevice with the specified format command.
 func FormatPool(format string, mdDevice string) error {
 	if err := exec.Command("mkfs."+format, "-F", mdDevice).Run(); err != nil {
-		return fmt.Errorf("failed to format RAID device: %w", err)
+		return fmt.Errorf("%w: %v", ErrFormatRaidDevice, err)
 	}
 	return nil
 }

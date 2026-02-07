@@ -3,8 +3,6 @@ package DB
 import (
 	"context"
 	"goNAS/storage"
-
-	"gorm.io/gorm"
 )
 
 // InsertPool persists a new pool record.
@@ -85,7 +83,7 @@ func (db *DB) PatchPool(ctx context.Context, pool *storage.Pool, patch *PoolPatc
 		return nil, result.Error
 	}
 	if result.RowsAffected == 0 {
-		return nil, gorm.ErrRecordNotFound
+		return nil, storage.ErrPoolNotFound
 	}
 
 	return updatedPool, nil

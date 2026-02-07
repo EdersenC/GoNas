@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"goNAS/DB"
 	"goNAS/api"
@@ -13,6 +14,11 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+)
+
+var (
+	ErrMdadmCommandMissing = errors.New("mdadm command not found")
+	ErrZeroSuperblock      = errors.New("failed to zero mdadm superblock")
 )
 
 // main wires dependencies, initializes the database, and starts the API server.
@@ -154,7 +160,7 @@ func zeroSuperblocks(deviceNumbers ...int) error {
 	// List of loop devices to target (0 through 3 in your case)
 	mdadmPath, err := exec.LookPath("mdadm")
 	if err != nil {
-		return fmt.Errorf("mdadm command not found: %w", err)
+		return fmt.Errorf("%w: %v", ErrMdadmCommandMissing, err)
 	}
 
 	for _, i := range deviceNumbers {
@@ -170,7 +176,7 @@ func zeroSuperblocks(deviceNumbers ...int) error {
 		if er != nil {
 			// Print the output (which often contains the sudo error or mdadm error details)
 			log.Printf("Error clearing superblock on %s: %s", deviceName, string(output))
-			return fmt.Errorf("failed to execute mdadm on %s: %w", deviceName, er)
+			return fmt.Errorf("%w: %s: %v", ErrZeroSuperblock, deviceName, er)
 		}
 
 		fmt.Printf("Successfully zeroed superblock on %s.\n", deviceName)

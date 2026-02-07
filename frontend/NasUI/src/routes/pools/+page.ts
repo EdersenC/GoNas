@@ -2,13 +2,14 @@
 import type { PageLoad } from "./$types";
 // @ts-ignore
 import type { Pool } from "$lib/models/pool.js";
+import { AppErrorCode, responseError } from "$lib/errors.js";
 
 // @ts-ignore
 export const load: PageLoad = async ({fetch}) => {
     const res = await fetch("http://localhost:8080/api/v1/pools");
 
     if (!res.ok) {
-        throw new Error(`Failed to load drives: ${res.status}`);
+        throw await responseError(res, AppErrorCode.FETCH_POOLS_FAILED, "Failed to load pools");
     }
 
 
