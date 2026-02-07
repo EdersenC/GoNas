@@ -19,7 +19,6 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache: true
-          cache: true
           cache-dependency-path: backend/go.sum
 
       - run: go mod download
