@@ -6,10 +6,25 @@ import (
 	"goNAS/DB"
 	"goNAS/helper"
 	"goNAS/storage"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
+
+func internalServerError(c *gin.Context, err error) {
+	log.Printf("internal server error: %v", err)
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+}
+
+func buildFailedAfterCreate(c *gin.Context, pool *storage.Pool, err error) {
+	log.Printf("pool created but build failed: pool=%s err=%v", pool.Uuid, err)
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"error":    "pool created, but build failed",
+		"poolUuid": pool.Uuid,
+		"created":  true,
+	})
+}
 
 // poolError writes a pool-related error response with the appropriate status.
 func (n *Nas) poolError(err error, c *gin.Context) {
@@ -45,6 +60,8 @@ func (n *Nas) poolError(err error, c *gin.Context) {
 		c.JSON(http.StatusBadRequest, message)
 	case errors.Is(err, helper.ErrUnsupportedRaidLevel):
 		c.JSON(http.StatusBadRequest, message)
+	case errors.Is(err, helper.ErrInvalidRaidName):
+		c.JSON(http.StatusBadRequest, message)
 	case errors.Is(err, helper.ErrInvalidSizeInput),
 		errors.Is(err, helper.ErrInvalidAmountInput),
 		errors.Is(err, helper.ErrRootPrivilegesNeeded),
@@ -57,7 +74,7 @@ func (n *Nas) poolError(err error, c *gin.Context) {
 		errors.Is(err, helper.ErrMountPointCreate),
 		errors.Is(err, helper.ErrMountRaidDevice),
 		errors.Is(err, helper.ErrFormatRaidDevice):
-		c.JSON(http.StatusInternalServerError, message)
+		internalServerError(c, err)
 	case errors.Is(err, storage.ErrPoolNotInMemory):
 		c.JSON(http.StatusNotFound, message)
 	case errors.Is(err, storage.ErrPoolDeleteUnmount),
@@ -67,9 +84,9 @@ func (n *Nas) poolError(err error, c *gin.Context) {
 		errors.Is(err, storage.ErrPoolDeleteZeroSB),
 		errors.Is(err, storage.ErrPoolCapacityRead),
 		errors.Is(err, storage.ErrPoolCapacityParse):
-		c.JSON(http.StatusInternalServerError, message)
+		internalServerError(c, err)
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
+		internalServerError(c, err)
 	}
 }
 
@@ -88,7 +105,7 @@ func (n *Nas) driveError(err error, c *gin.Context) {
 	case errors.Is(err, storage.ErrDuplicateDriveKey):
 		c.JSON(http.StatusBadRequest, message)
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error: " + err.Error()})
+		internalServerError(c, err)
 	}
 }
 
@@ -158,7 +175,7 @@ func createPool(c *gin.Context) {
 	if req.Build {
 		err = pool.Build()
 		if err != nil {
-			NAS.poolError(err, c)
+			buildFailedAfterCreate(c, pool, err)
 			return
 		}
 	}
@@ -210,17 +227,16 @@ func updatePool(c *gin.Context) {
 		return
 	}
 
-	var req *DB.PoolPatch
-
+	var req DB.PoolPatch
 	if err = c.ShouldBindJSON(&req); err != nil {
 		NAS.poolError(fmt.Errorf("%w: %v", storage.ErrInvalidRequestBody, err), c)
 		return
 	}
-	if err = NAS.ValidatePoolPatch(req); err != nil {
+	if err = NAS.ValidatePoolPatch(&req); err != nil {
 		NAS.poolError(err, c)
 		return
 	}
-	updatedPool, err := SERVER.Db.PatchPool(c, pool, req)
+	updatedPool, err := SERVER.Db.PatchPool(c, pool, &req)
 	if err != nil {
 		NAS.poolError(err, c)
 		return
